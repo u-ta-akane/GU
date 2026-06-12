@@ -242,15 +242,16 @@ func main() {
 		utils.SendMessage(refs.Config.ModeratorChannelID, err.Error(), dgs)
 		log.Fatal(err)
 	}
-	waitForSignal(refs.Secrets, node, utils.YURUBOItemChannel, utils.GeneralMessageChannel, utils.IDChannel, admin.SignalChannel, utils.ErrorChannel)
+	waitForSignal(refs.Secrets, refs.Config, node, utils.YURUBOItemChannel, utils.GeneralMessageChannel, utils.IDChannel, admin.SignalChannel, utils.ErrorChannel)
 }
 
-func waitForSignal(secrets refs.SecretData, node *snowflake.Node, yc <-chan refs.JobData, gc <-chan utils.Envelope, ic chan string, sc chan os.Signal, ec <-chan error) {
+func waitForSignal(secrets refs.SecretData, guildStr refs.GuildStructure, node *snowflake.Node, yc <-chan refs.JobData, gc <-chan utils.Envelope, ic chan string, sc chan os.Signal, ec <-chan error) {
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	utils.IsCreatedChannel = true
 	go func() {
 		time.Sleep(5000 * time.Millisecond)
 		utils.JSONFM.Write("secrets.json", secrets)
+		utils.JSONFM.Write("config.json", guildStr)
 		if len(utils.JobDataSlice) == 0 {
 			utils.JSONFM.Write("jobData.json", utils.JobDataSlice)
 		}
