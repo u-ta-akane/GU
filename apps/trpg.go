@@ -21,9 +21,11 @@ type Room struct {
 	VC             *discordgo.Channel
 	messages       chan *discordgo.MessageCreate
 	consoleChannel *discordgo.Channel
-	mainChannel    *discordgo.Channel
+	MainChannelID  string
 	role           *discordgo.Role
+	GM             *discordgo.Member
 	mute           bool
+	pls            []*discordgo.Member
 	answer         []Answer
 }
 
@@ -53,6 +55,31 @@ func trpgMessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 			req := strings.Split(m.Content, "!")
 			if len(req) == 2 && req[0] == "g" {
 				switch req[1] {
+				case "main":
+					_, err := s.ChannelMessageSendComplex(
+						room.consoleChannel.ID,
+						&discordgo.MessageSend{
+							Content: "PLに一般公開するチャンネルを選択してください",
+							Components: []discordgo.MessageComponent{
+								discordgo.ActionsRow{
+									Components: []discordgo.MessageComponent{
+										discordgo.SelectMenu{
+											CustomID:    fmt.Sprintf("MainChannel : %s", room.VC.Name),
+											Placeholder: "チャンネルを選択",
+											MenuType:    discordgo.ChannelSelectMenu,
+											ChannelTypes: []discordgo.ChannelType{
+												discordgo.ChannelTypeGuildText,
+												discordgo.ChannelTypeGuildVoice,
+											},
+										},
+									},
+								},
+							},
+						},
+					)
+					if err != nil {
+						utils.Log(err, "", "vote")
+					}
 				case "quit":
 					fallthrough
 				case "q":
@@ -72,12 +99,13 @@ func trpgMessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 					fallthrough
 				case "yuetu":
 					for _, mem := range room.getVCMember(s) {
-						if strings.Contains(m.Member.User.Username, "愉悦") || strings.Contains(m.Member.User.Username, "観戦") {
+						if !strings.Contains(m.Member.User.Username, "愉悦") || !strings.Contains(m.Member.User.Username, "観戦") {
 							err := s.GuildMemberRoleAdd(
 								refs.Config.GuildID,
 								mem.User.ID,
 								room.role.ID,
 							)
+							room.pls = append(room.pls, mem)
 							if err != nil {
 								utils.Log(err, "", "trpgMessageHandler : yuetsu/yuetu")
 							}
@@ -100,7 +128,7 @@ func trpgMessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 					room.mute = !room.mute
 					break
 				case "vote":
-
+					room.vote(s)
 				}
 			}
 		}
@@ -111,7 +139,7 @@ func NewRoom(s *discordgo.Session, i *discordgo.InteractionCreate, vc *discordgo
 	cc, err := s.GuildChannelCreateComplex(
 		refs.Config.GuildID,
 		discordgo.GuildChannelCreateData{
-			Name: fmt.Sprintf("monitor-room : %s", vc.Name),
+			Name: fmt.Sprintf("console : %s", vc.Name),
 			Type: discordgo.ChannelTypeGuildText,
 			PermissionOverwrites: []*discordgo.PermissionOverwrite{
 				{
@@ -150,18 +178,20 @@ func NewRoom(s *discordgo.Session, i *discordgo.InteractionCreate, vc *discordgo
 		consoleChannel: cc,
 		role:           role,
 		mute:           false,
+		GM:             i.Member,
 	})
 	utils.SendMessage(cc.ID, "TRPGセッションが開始されました！\n\nコマンドの使用方法を以下に示します\ng!yuetu(g!yuetsu) : 現在VCに参加中で、名前に観戦、愉悦とある人以外にPLロールを付与します\ng!q(g!quit) : TRPGセッションを終了します(このコンソールが閉じます)\ng!m(g!mute) : PLロールを持っている人全員をミュートします。もう一度実行すると解除されます。このミュートはこのコマンドによってしか解除できません。", s)
 }
 
 func (r *Room) vote(s *discordgo.Session) {
-	if r.mainChannel == nil {
+	if r.MainChannelID == "" {
+		return
 	}
 	for _, member := range r.getVCMember(s) {
 		for _, role := range member.Roles {
 			if role == r.role.ID {
 				_, err := s.ChannelMessageSendComplex(
-					refs.Config.GuildID,
+					r.VC.ID,
 					&discordgo.MessageSend{
 						Content: "入力してください",
 						Components: []discordgo.MessageComponent{
@@ -186,5 +216,8 @@ func (r *Room) vote(s *discordgo.Session) {
 }
 
 func (r *Room) ShowAnswer(s *discordgo.Session, res Answer) {
+	r.answer = append(r.answer, res)
+	if len(r.answer) == len(r.pls) {
 
+	}
 }

@@ -20,7 +20,7 @@ func trpgHandler(s *discordgo.Session, i *discordgo.InteractionCreate, cmds *[re
 			},
 		})
 		if err != nil {
-			utils.Log(err, "", "adminHandler")
+			utils.Log(err, "", "trpgHandler")
 			return
 		}
 	case refs.IndexTrpgSetMute:
@@ -33,7 +33,7 @@ func trpgHandler(s *discordgo.Session, i *discordgo.InteractionCreate, cmds *[re
 			},
 		})
 		if err != nil {
-			utils.Log(err, "", "adminHandler")
+			utils.Log(err, "", "trpgHandler")
 			return
 		}
 		break

@@ -40,6 +40,7 @@ func onInteraction(dgs *discordgo.Session, i *discordgo.InteractionCreate) {
 		}
 
 	}
+
 	/*err := dgs.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -48,6 +49,14 @@ func onInteraction(dgs *discordgo.Session, i *discordgo.InteractionCreate) {
 		},
 	})*/
 	data := i.MessageComponentData()
+	if strings.Contains(data.CustomID, "mainChannel") {
+		for _, room := range apps.RoomList {
+			if room.GM.User.ID == i.User.ID {
+				room.MainChannelID = data.Values[0]
+			}
+		}
+		return
+	}
 	if strings.Contains(data.CustomID, "vote") {
 		utils.MakeModal(dgs, i, data.CustomID)
 	}
