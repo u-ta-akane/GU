@@ -72,3 +72,32 @@ func DeleteMessages(channelID string, from string, num int, reason string, dgs *
 	}
 	return 0
 }
+
+func MakeModal(s *discordgo.Session, i *discordgo.InteractionCreate, customID string) {
+	err := s.InteractionRespond(
+		i.Interaction,
+		&discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseModal,
+			Data: &discordgo.InteractionResponseData{
+				CustomID: "modal-" + customID,
+				Title:    "入力してください",
+				Components: []discordgo.MessageComponent{
+					discordgo.ActionsRow{
+						Components: []discordgo.MessageComponent{
+							discordgo.TextInput{
+								CustomID: "text",
+								Label:    "解答",
+								Style:    discordgo.TextInputShort,
+								Required: true,
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+	if err != nil {
+		Log(err, "", "MakeModal")
+		return
+	}
+}

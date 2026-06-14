@@ -22,7 +22,7 @@ var (
 )
 
 // Write JSONデータをファイルに書き込む
-func (j *JSONFileManager) Write(filename string, data interface{}) {
+func (j *JSONFileManager) Write(filename string, data interface{}) error {
 	f, err := os.Create(filename)
 	if err != nil {
 		log.Fatalf("ファイル取得失敗: %v", err)
@@ -42,6 +42,7 @@ func (j *JSONFileManager) Write(filename string, data interface{}) {
 	if _, err := f.Write(output); err != nil {
 		log.Fatalf("JSON書き込み失敗: %v", err)
 	}
+	return err
 }
 
 // ReadJSON JSONデータをファイルから読み込む

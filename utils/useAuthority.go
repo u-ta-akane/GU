@@ -7,7 +7,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func hasBit(num uint32, bitPosition uint32) bool {
+func hasBit(num uint32, bitPosition uint8) bool {
 	return (num & (1 << bitPosition)) != 0
 }
 
@@ -19,7 +19,7 @@ func caluculateAuthority(params ...uint32) uint32 {
 	return ans
 }
 
-func HasAuthority(s *discordgo.Session, i *discordgo.InteractionCreate, targetAuthority uint32) (bool, int) {
+func HasAuthority(s *discordgo.Session, i *discordgo.InteractionCreate, targetAuthority uint8) (bool, int) {
 	member, err := s.GuildMember(i.GuildID, i.Member.User.ID)
 	var ans uint32
 	if err != nil {

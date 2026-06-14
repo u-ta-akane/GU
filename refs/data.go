@@ -24,14 +24,16 @@ const (
 	ColorHorror    = 0x000080
 	ColorTableGame
 	ColorDeveloper = 0x378566
+	ColorTrpg      = 0x0
 )
 
 const (
-	_ uint32 = iota
+	_ uint8 = iota
 	AuthorityControlMessages
 	AuthoritySendAdminMessage
 	AuthorityBotManagement
 	AuthorityReflashData
+	AuthorityVoiceChannelManagement
 )
 
 const (
@@ -41,6 +43,9 @@ const (
 	IndexAdminDeleteMessages
 	IndexAdminStopBot
 	IndexAdminReflashRoleData
+	IndexTrpgStart
+	IndexTrpgEnd
+	IndexTrpgSetMute
 	// NumberOfCommands この上にコマンドを追加する！
 	NumberOfCommands
 )
@@ -72,14 +77,20 @@ func GetColor(role string) int {
 	color := 0x000
 	switch role {
 	case "OW":
+		fallthrough
 	case "Valorant":
+		fallthrough
 	case "Apex":
+		fallthrough
 	case "BF":
+		fallthrough
 	case "R6S":
+		fallthrough
 	case "Strinova":
 		color = ColorFPS
 		break
 	case "Identity V":
+		fallthrough
 	case "DBD":
 		color = ColorHorror
 		break
@@ -87,8 +98,11 @@ func GetColor(role string) int {
 		color = ColorMineCraft
 		break
 	case "Shadowverse":
+		fallthrough
 	case "デュエマ":
+		fallthrough
 	case "遊戯王":
+		fallthrough
 	case "雀魂":
 		color = ColorTableGame
 		break

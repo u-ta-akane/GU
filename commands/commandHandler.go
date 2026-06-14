@@ -15,86 +15,6 @@ type Command interface {
 	Execute(s *discordgo.Session, i *discordgo.InteractionCreate) string
 }
 
-func adminHandler(s *discordgo.Session, i *discordgo.InteractionCreate, cmds *[refs.NumberOfCommands]Command, index int) {
-	if i.Type != discordgo.InteractionApplicationCommand {
-		return
-	}
-	switch index {
-	case refs.IndexAdminTestMessage:
-		result, e := utils.HasAuthority(s, i, refs.AuthoritySendAdminMessage)
-		response := "Authorization Error"
-		if e == 0 && result {
-			response = (cmds[refs.IndexAdminTestMessage]).Execute(s, i)
-		}
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
-			Data: &discordgo.InteractionResponseData{
-				Content: response,
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-		if err != nil {
-			utils.Log(err, "", "adminHandler")
-			return
-		}
-		break
-	case refs.IndexAdminDeleteMessages:
-		result, e := utils.HasAuthority(s, i, refs.AuthorityControlMessages)
-		response := "Authorization Error"
-		if e == 0 && result {
-			response = (cmds[refs.IndexAdminDeleteMessages]).Execute(s, i)
-		}
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
-			Data: &discordgo.InteractionResponseData{
-				Content: response,
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-		if err != nil {
-			utils.Log(err, "", "adminHandler")
-			return
-		}
-		break
-	case refs.IndexAdminStopBot:
-		result, e := utils.HasAuthority(s, i, refs.AuthorityBotManagement)
-		response := "Authorization Error"
-		if e == 0 && result {
-			response = (cmds[refs.IndexAdminStopBot]).Execute(s, i)
-		}
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
-			Data: &discordgo.InteractionResponseData{
-				Content: response,
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-		if err != nil {
-			utils.Log(err, "", "adminHandler")
-			return
-		}
-		break
-	case refs.IndexAdminReflashRoleData:
-		result, e := utils.HasAuthority(s, i, refs.AuthorityReflashData)
-		response := "Authorization Error"
-		if e == 0 && result {
-			response = (cmds[refs.IndexAdminReflashRoleData]).Execute(s, i)
-		}
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
-			Data: &discordgo.InteractionResponseData{
-				Content: response,
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-		if err != nil {
-			utils.Log(err, "", "adminHandler")
-			return
-		}
-		break
-	}
-}
-
 func SetupCommands(dgs *discordgo.Session, cmds *[refs.NumberOfCommands]Command) {
 	dgs.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if i.Type != discordgo.InteractionApplicationCommand {
@@ -112,6 +32,11 @@ func SetupCommands(dgs *discordgo.Session, cmds *[refs.NumberOfCommands]Command)
 			break
 		case "a-delete-role-data":
 			adminHandler(s, i, cmds, refs.IndexAdminReflashRoleData)
+			break
+		case "start":
+			trpgHandler(s, i, cmds, refs.IndexTrpgStart)
+		case "set-mute":
+			trpgHandler(s, i, cmds, refs.IndexTrpgSetMute)
 			break
 		case "ゆるぼ":
 			response := (cmds[refs.IndexAddYURUBO]).Execute(s, i)

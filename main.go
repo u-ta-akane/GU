@@ -155,7 +155,7 @@ func main() {
 	sessionManager := &DiscordSessionManager{}
 	dgs = sessionManager.InitializeSession(refs.Secrets.BotToken)
 	dgs.AddHandler(onMemberAdd)
-	dgs.AddHandler(onClickButton)
+	dgs.AddHandler(onInteraction)
 	if err := dgs.Open(); err != nil {
 		var restErr *discordgo.RESTError
 		switch {
@@ -250,10 +250,15 @@ func waitForSignal(secrets refs.SecretData, guildStr refs.GuildStructure, node *
 	utils.IsCreatedChannel = true
 	go func() {
 		time.Sleep(5000 * time.Millisecond)
-		utils.JSONFM.Write("secrets.json", secrets)
-		utils.JSONFM.Write("config.json", guildStr)
+		err := utils.JSONFM.Write("secrets.json", secrets)
+		fmt.Printf("err=%v type=%T value=%+v\n", err, secrets, secrets)
+		err = utils.JSONFM.Write("config.json", guildStr)
+		fmt.Printf("err=%v type=%T value=%+v\n", err, guildStr, guildStr)
 		if len(utils.JobDataSlice) == 0 {
-			utils.JSONFM.Write("jobData.json", utils.JobDataSlice)
+			err := utils.JSONFM.Write("jobData.json", utils.JobDataSlice)
+			if err != nil {
+				fmt.Printf("err=%v type=%T value=%+v\n", err, utils.JobDataSlice, utils.JobDataSlice)
+			}
 		}
 	}()
 Completed:
