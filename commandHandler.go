@@ -1,4 +1,4 @@
-package commands
+package main
 
 import (
 	"GU/refs"
@@ -22,21 +22,21 @@ func SetupCommands(dgs *discordgo.Session, cmds *[refs.NumberOfCommands]Command)
 		}
 		switch i.ApplicationCommandData().Name {
 		case "a-test-message":
-			adminHandler(s, i, cmds, refs.IndexAdminTestMessage)
+			AdminHandler(s, i, cmds, refs.IndexAdminTestMessage)
 			break
 		case "a-delete-messages":
-			adminHandler(s, i, cmds, refs.IndexAdminDeleteMessages)
+			AdminHandler(s, i, cmds, refs.IndexAdminDeleteMessages)
 			break
 		case "a-stop-bot":
-			adminHandler(s, i, cmds, refs.IndexAdminStopBot)
+			AdminHandler(s, i, cmds, refs.IndexAdminStopBot)
 			break
 		case "a-delete-role-data":
-			adminHandler(s, i, cmds, refs.IndexAdminReflashRoleData)
+			AdminHandler(s, i, cmds, refs.IndexAdminReflashRoleData)
 			break
 		case "start":
-			trpgHandler(s, i, cmds, refs.IndexTrpgStart)
+			TrpgHandler(s, i, cmds, refs.IndexTrpgStart)
 		case "set-mute":
-			trpgHandler(s, i, cmds, refs.IndexTrpgSetMute)
+			TrpgHandler(s, i, cmds, refs.IndexTrpgSetMute)
 			break
 		case "ゆるぼ":
 			response := (cmds[refs.IndexAddYURUBO]).Execute(s, i)

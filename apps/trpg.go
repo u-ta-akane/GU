@@ -5,31 +5,72 @@ import (
 	"GU/utils"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/pion/rtp"
+	"github.com/pion/webrtc/v4/pkg/media/oggwriter"
 )
 
 var RoomList = make([]*Room, 0)
-var RemoveMessageHandler func()
+var HandlerChannel = make(chan uint8)
+var UsingRecode uint8 = 0
+var ContinueRecodeChannel = make(chan uint8)
 
 type Answer struct {
 	CustomID string
 	Value    string
 }
 
+type recorder struct {
+	Writers map[uint32]*oggwriter.OggWriter
+	Mutex   sync.Mutex
+}
+
 type Room struct {
 	VC             *discordgo.Channel
 	messages       chan *discordgo.MessageCreate
-	consoleChannel *discordgo.Channel
+	ConsoleChannel *discordgo.Channel
+	IsRecording    bool
 	MainChannelID  string
-	role           *discordgo.Role
+	Role           *discordgo.Role
 	GM             *discordgo.Member
-	mute           bool
-	pls            []*discordgo.Member
-	answer         []Answer
+	Mute           bool
+	Pls            []*discordgo.Member
+	PlVotes        map[string]bool
+	voteButtonIDs  []string
+	fin            bool
 }
 
-func (r *Room) getVCMember(s *discordgo.Session) []*discordgo.Member {
+func (r *recorder) GetWriter(
+	userID string,
+	ssrc uint32,
+) (*oggwriter.OggWriter, error) {
+
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+
+	if w, ok := r.Writers[ssrc]; ok {
+		return w, nil
+	}
+
+	filename := fmt.Sprintf("%s.ogg", userID)
+
+	w, err := oggwriter.New(
+		filename,
+		48000,
+		2,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	r.Writers[ssrc] = w
+
+	return w, nil
+}
+
+func (r *Room) GetVCMember(s *discordgo.Session) []*discordgo.Member {
 	guild, err := s.State.Guild(refs.Config.GuildID)
 	var res []*discordgo.Member
 	if err != nil {
@@ -47,92 +88,6 @@ func (r *Room) getVCMember(s *discordgo.Session) []*discordgo.Member {
 		res = append(res, member)
 	}
 	return res
-}
-
-func trpgMessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
-	for idx, room := range RoomList {
-		if room.consoleChannel.ID == m.ChannelID {
-			req := strings.Split(m.Content, "!")
-			if len(req) == 2 && req[0] == "g" {
-				switch req[1] {
-				case "main":
-					_, err := s.ChannelMessageSendComplex(
-						room.consoleChannel.ID,
-						&discordgo.MessageSend{
-							Content: "PLに一般公開するチャンネルを選択してください",
-							Components: []discordgo.MessageComponent{
-								discordgo.ActionsRow{
-									Components: []discordgo.MessageComponent{
-										discordgo.SelectMenu{
-											CustomID:    fmt.Sprintf("MainChannel : %s", room.VC.Name),
-											Placeholder: "チャンネルを選択",
-											MenuType:    discordgo.ChannelSelectMenu,
-											ChannelTypes: []discordgo.ChannelType{
-												discordgo.ChannelTypeGuildText,
-												discordgo.ChannelTypeGuildVoice,
-											},
-										},
-									},
-								},
-							},
-						},
-					)
-					if err != nil {
-						utils.Log(err, "", "vote")
-					}
-				case "quit":
-					fallthrough
-				case "q":
-					err := s.GuildRoleDelete(refs.Config.GuildID, room.role.ID)
-					if err != nil {
-						utils.Log(err, "", "trpgMessageHandler : quit/q")
-						return
-					}
-					_, err = s.ChannelDelete(room.consoleChannel.ID)
-					if err != nil {
-						utils.Log(err, "", "trpgMessageHandler : quit/q")
-						return
-					}
-					RoomList[idx] = &Room{}
-					break
-				case "yuetsu":
-					fallthrough
-				case "yuetu":
-					for _, mem := range room.getVCMember(s) {
-						if !strings.Contains(m.Member.User.Username, "愉悦") || !strings.Contains(m.Member.User.Username, "観戦") {
-							err := s.GuildMemberRoleAdd(
-								refs.Config.GuildID,
-								mem.User.ID,
-								room.role.ID,
-							)
-							room.pls = append(room.pls, mem)
-							if err != nil {
-								utils.Log(err, "", "trpgMessageHandler : yuetsu/yuetu")
-							}
-						}
-					}
-				case "m":
-					fallthrough
-				case "mute":
-					for _, mem := range room.getVCMember(s) {
-						for _, role := range mem.Roles {
-							if role == room.role.ID {
-								err := s.GuildMemberMute(refs.Config.GuildID, mem.User.ID, !room.mute)
-								if err != nil {
-									utils.Log(err, "", "trpgMessageHandler : m/mute")
-								}
-								break
-							}
-						}
-					}
-					room.mute = !room.mute
-					break
-				case "vote":
-					room.vote(s)
-				}
-			}
-		}
-	}
 }
 
 func NewRoom(s *discordgo.Session, i *discordgo.InteractionCreate, vc *discordgo.Channel) {
@@ -170,27 +125,27 @@ func NewRoom(s *discordgo.Session, i *discordgo.InteractionCreate, vc *discordgo
 		utils.Log(err, "", "NewRoom")
 		return
 	}
-	if RemoveMessageHandler == nil {
-		RemoveMessageHandler = s.AddHandler(trpgMessageHandler)
-	}
+	HandlerChannel <- refs.MakeTrpgTextHandler
 	RoomList = append(RoomList, &Room{
 		VC:             vc,
-		consoleChannel: cc,
-		role:           role,
-		mute:           false,
+		ConsoleChannel: cc,
+		Role:           role,
+		Mute:           false,
 		GM:             i.Member,
+		fin:            false,
+		IsRecording:    false,
 	})
 	utils.SendMessage(cc.ID, "TRPGセッションが開始されました！\n\nコマンドの使用方法を以下に示します\ng!yuetu(g!yuetsu) : 現在VCに参加中で、名前に観戦、愉悦とある人以外にPLロールを付与します\ng!q(g!quit) : TRPGセッションを終了します(このコンソールが閉じます)\ng!m(g!mute) : PLロールを持っている人全員をミュートします。もう一度実行すると解除されます。このミュートはこのコマンドによってしか解除できません。", s)
 }
 
-func (r *Room) vote(s *discordgo.Session) {
+func (r *Room) Vote(s *discordgo.Session) {
 	if r.MainChannelID == "" {
 		return
 	}
-	for _, member := range r.getVCMember(s) {
+	for _, member := range r.GetVCMember(s) {
 		for _, role := range member.Roles {
-			if role == r.role.ID {
-				_, err := s.ChannelMessageSendComplex(
+			if role == r.Role.ID {
+				m, err := s.ChannelMessageSendComplex(
 					r.VC.ID,
 					&discordgo.MessageSend{
 						Content: "入力してください",
@@ -210,14 +165,115 @@ func (r *Room) vote(s *discordgo.Session) {
 				if err != nil {
 					utils.Log(err, "", "vote")
 				}
+				r.voteButtonIDs = append(r.voteButtonIDs, m.ID)
 			}
 		}
 	}
 }
 
 func (r *Room) ShowAnswer(s *discordgo.Session, res Answer) {
-	r.answer = append(r.answer, res)
-	if len(r.answer) == len(r.pls) {
-
+	var id string
+	var name string
+	for _, pl := range r.Pls {
+		if strings.Contains(res.CustomID, pl.User.ID) {
+			id = pl.User.ID
+			name = pl.User.Username
+			break
+		}
 	}
+	if r.PlVotes[id] {
+		utils.SendMessage(r.ConsoleChannel.ID, fmt.Sprintf("%s(2回目以降の解答) : %s", name, res.Value), s)
+	} else {
+		utils.SendMessage(r.ConsoleChannel.ID, fmt.Sprintf("%s : %s", name, res.Value), s)
+	}
+	i := 0
+	for _, v := range r.PlVotes {
+		if v {
+			i++
+		}
+	}
+	if i == len(r.Pls) {
+		utils.SendMessage(r.ConsoleChannel.ID, "全PLが解答しました", s)
+		r.closeVote(s)
+	}
+}
+
+func (r *Room) closeVote(s *discordgo.Session) {
+	for key, _ := range r.PlVotes {
+		r.PlVotes[key] = false
+	}
+	for _, id := range r.voteButtonIDs {
+		err := s.ChannelMessageDelete(r.MainChannelID, id)
+		if err != nil {
+			utils.Log(err, "", "closeVote")
+			return
+		}
+	}
+}
+
+func (r *Room) Recode(s *discordgo.Session) {
+	vc, e := s.ChannelVoiceJoin(
+		refs.Config.GuildID,
+		r.VC.ID,
+		false,
+		false,
+	)
+	UsingRecode++
+	r.IsRecording = true
+	if e != nil {
+		utils.Log(e, "", "Recode")
+	}
+	rec := &recorder{
+		Writers: make(map[uint32]*oggwriter.OggWriter),
+	}
+	go func() {
+		for {
+		check:
+			select {
+			case h := <-ContinueRecodeChannel:
+				if h == refs.StopRecode {
+					break check
+				}
+			default:
+				break check
+			}
+			packet, ok := <-vc.OpusRecv
+			if !ok {
+				break
+			}
+			userID := vc.UserID
+			if userID == "" {
+				continue
+			}
+			writer, err := rec.GetWriter(
+				userID,
+				packet.SSRC,
+			)
+			if err != nil {
+				utils.Log(err, "", "Recode")
+				continue
+			}
+
+			err = writer.WriteRTP(&rtp.Packet{
+				Header: rtp.Header{
+					Version:        2,
+					PayloadType:    111,
+					SequenceNumber: packet.Sequence,
+					Timestamp:      packet.Timestamp,
+					SSRC:           packet.SSRC,
+				},
+				Payload: packet.Opus,
+			})
+
+			if err != nil {
+				utils.Log(err, "", "Recode")
+			}
+		}
+		for _, writer := range rec.Writers {
+			err := writer.Close()
+			if err != nil {
+				utils.Log(err, "", "Recode")
+			}
+		}
+	}()
 }

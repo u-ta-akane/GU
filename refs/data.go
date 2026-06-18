@@ -33,7 +33,6 @@ const (
 	AuthoritySendAdminMessage
 	AuthorityBotManagement
 	AuthorityReflashData
-	AuthorityVoiceChannelManagement
 )
 
 const (
@@ -44,11 +43,17 @@ const (
 	IndexAdminStopBot
 	IndexAdminReflashRoleData
 	IndexTrpgStart
-	IndexTrpgEnd
 	IndexTrpgSetMute
 	// NumberOfCommands この上にコマンドを追加する！
 	NumberOfCommands
 )
+
+const (
+	MakeTrpgTextHandler uint8 = iota
+	RemoveTrpgTextHandler
+)
+
+const StopRecode uint8 = 0
 
 // JobData は、チーム、cronスケジュール、および役職を持つジョブの構造体
 type JobData struct {

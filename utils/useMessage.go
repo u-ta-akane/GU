@@ -85,7 +85,7 @@ func MakeModal(s *discordgo.Session, i *discordgo.InteractionCreate, customID st
 					discordgo.ActionsRow{
 						Components: []discordgo.MessageComponent{
 							discordgo.TextInput{
-								CustomID: "text",
+								CustomID: "ans-" + customID,
 								Label:    "解答",
 								Style:    discordgo.TextInputShort,
 								Required: true,

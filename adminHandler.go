@@ -1,4 +1,4 @@
-package commands
+package main
 
 import (
 	"GU/refs"
@@ -7,7 +7,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func adminHandler(s *discordgo.Session, i *discordgo.InteractionCreate, cmds *[refs.NumberOfCommands]Command, index int) {
+func AdminHandler(s *discordgo.Session, i *discordgo.InteractionCreate, cmds *[refs.NumberOfCommands]Command, index int) {
 	if i.Type != discordgo.InteractionApplicationCommand {
 		return
 	}

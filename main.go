@@ -119,7 +119,7 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 			break
 		}
 		guildStr.GuildID = *opt
-	case "defaultAuth":
+	default:
 		if *opt == "" {
 			break
 		}
@@ -187,7 +187,7 @@ func main() {
 	}
 	//cmdsの順番は変えないこと！！！
 	//コマンドを追加する際はdataにインデックス番号の追記を適切な位置にすること！
-	var cmds = [refs.NumberOfCommands]commands.Command{
+	var cmds = [refs.NumberOfCommands]Command{
 		&admin.AdminTestMessageCommand{},
 		&commands.AddYURUBOCommand{},
 		&commands.DeleteYURUBOCommand{},
@@ -225,7 +225,7 @@ func main() {
 		log.Printf("Info : All commands have been registered")
 		utils.SendMessage(refs.Config.ModeratorChannelID, "Info : All commands have been registered", dgs)
 	}
-	commands.SetupCommands(dgs, &cmds)
+	SetupCommands(dgs, &cmds)
 	defer func(dgs *discordgo.Session) {
 		err := dgs.Close()
 		if err != nil {
@@ -242,11 +242,11 @@ func main() {
 		utils.SendMessage(refs.Config.ModeratorChannelID, err.Error(), dgs)
 		log.Fatal(err)
 	}
-	waitForSignal(refs.Secrets, refs.Config, node, utils.YURUBOItemChannel, utils.GeneralMessageChannel, utils.IDChannel, admin.SignalChannel, utils.ErrorChannel)
+	waitForSignal(refs.Secrets, refs.Config, node)
 }
 
-func waitForSignal(secrets refs.SecretData, guildStr refs.GuildStructure, node *snowflake.Node, yc <-chan refs.JobData, gc <-chan utils.Envelope, ic chan string, sc chan os.Signal, ec <-chan error) {
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+func waitForSignal(secrets refs.SecretData, guildStr refs.GuildStructure, node *snowflake.Node) {
+	signal.Notify(admin.SignalChannel, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	utils.IsCreatedChannel = true
 	go func() {
 		time.Sleep(5000 * time.Millisecond)
@@ -261,23 +261,31 @@ func waitForSignal(secrets refs.SecretData, guildStr refs.GuildStructure, node *
 			}
 		}
 	}()
+	var removeTrpgTextHandler func() = nil
 Completed:
 	for {
 		select {
-		case <-sc:
+		case <-admin.SignalChannel:
 			break Completed
-		case item := <-yc:
+		case item := <-utils.YURUBOItemChannel:
 			utils.SendYURUBOItem(dgs, item)
-			break
-		case en := <-gc:
+		case en := <-utils.GeneralMessageChannel:
 			utils.SendMessage(en.Channel, en.Message, dgs)
-			break
-		case <-ic:
-			ic <- utils.GenerateID(node)
-			break
-		case e := <-ec:
+		case <-utils.IDChannel:
+			utils.IDChannel <- utils.GenerateID(node)
+		case e := <-utils.ErrorChannel:
 			utils.Log(e, "", "onMemberAdd")
-			break
+		case h := <-apps.HandlerChannel:
+			switch h {
+			case refs.MakeTrpgTextHandler:
+
+				if removeTrpgTextHandler == nil {
+					removeTrpgTextHandler = dgs.AddHandler(TrpgTextHandler)
+				}
+			case refs.RemoveTrpgTextHandler:
+				removeTrpgTextHandler()
+				removeTrpgTextHandler = nil
+			}
 		}
 	}
 }
