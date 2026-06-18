@@ -26,20 +26,6 @@ func TrpgHandler(s *discordgo.Session, i *discordgo.InteractionCreate, cmds *[re
 			utils.Log(err, "", "trpgHandler")
 			return
 		}
-	case refs.IndexTrpgSetMute:
-		response := (cmds[refs.IndexTrpgSetMute]).Execute(s, i)
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
-			Data: &discordgo.InteractionResponseData{
-				Content: response,
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-		if err != nil {
-			utils.Log(err, "", "trpgHandler")
-			return
-		}
-		break
 	}
 }
 

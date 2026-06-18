@@ -23,21 +23,14 @@ func SetupCommands(dgs *discordgo.Session, cmds *[refs.NumberOfCommands]Command)
 		switch i.ApplicationCommandData().Name {
 		case "a-test-message":
 			AdminHandler(s, i, cmds, refs.IndexAdminTestMessage)
-			break
 		case "a-delete-messages":
 			AdminHandler(s, i, cmds, refs.IndexAdminDeleteMessages)
-			break
 		case "a-stop-bot":
 			AdminHandler(s, i, cmds, refs.IndexAdminStopBot)
-			break
 		case "a-delete-role-data":
 			AdminHandler(s, i, cmds, refs.IndexAdminReflashRoleData)
-			break
 		case "start":
 			TrpgHandler(s, i, cmds, refs.IndexTrpgStart)
-		case "set-mute":
-			TrpgHandler(s, i, cmds, refs.IndexTrpgSetMute)
-			break
 		case "ゆるぼ":
 			response := (cmds[refs.IndexAddYURUBO]).Execute(s, i)
 			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

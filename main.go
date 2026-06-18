@@ -156,6 +156,7 @@ func main() {
 	dgs = sessionManager.InitializeSession(refs.Secrets.BotToken)
 	dgs.AddHandler(onMemberAdd)
 	dgs.AddHandler(onInteraction)
+	dgs.AddHandler(TrpgTextHandler)
 	if err := dgs.Open(); err != nil {
 		var restErr *discordgo.RESTError
 		switch {
@@ -261,7 +262,6 @@ func waitForSignal(secrets refs.SecretData, guildStr refs.GuildStructure, node *
 			}
 		}
 	}()
-	var removeTrpgTextHandler func() = nil
 Completed:
 	for {
 		select {
@@ -275,17 +275,6 @@ Completed:
 			utils.IDChannel <- utils.GenerateID(node)
 		case e := <-utils.ErrorChannel:
 			utils.Log(e, "", "onMemberAdd")
-		case h := <-apps.HandlerChannel:
-			switch h {
-			case refs.MakeTrpgTextHandler:
-
-				if removeTrpgTextHandler == nil {
-					removeTrpgTextHandler = dgs.AddHandler(TrpgTextHandler)
-				}
-			case refs.RemoveTrpgTextHandler:
-				removeTrpgTextHandler()
-				removeTrpgTextHandler = nil
-			}
 		}
 	}
 }

@@ -13,7 +13,6 @@ import (
 )
 
 var RoomList = make([]*Room, 0)
-var HandlerChannel = make(chan uint8)
 var UsingRecode uint8 = 0
 var ContinueRecodeChannel = make(chan uint8)
 
@@ -125,7 +124,6 @@ func NewRoom(s *discordgo.Session, i *discordgo.InteractionCreate, vc *discordgo
 		utils.Log(err, "", "NewRoom")
 		return
 	}
-	HandlerChannel <- refs.MakeTrpgTextHandler
 	RoomList = append(RoomList, &Room{
 		VC:             vc,
 		ConsoleChannel: cc,
