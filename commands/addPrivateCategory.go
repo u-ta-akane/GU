@@ -12,17 +12,14 @@ type AddPrivateCategoryCommands struct{}
 func (c *AddPrivateCategoryCommands) CreateCommand() []*discordgo.ApplicationCommand {
 	dc := []*discordgo.ApplicationCommand{
 		{
-			Name:        "a-delete-messages",
-			Description: "AdminDeleteMessages",
+			Name:        "name",
+			Description: "作成したいカテゴリーのタイトルを設定してください",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "from",
-					Description: "Enter Message ID of Start Point",
+					Name:        "name",
+					Description: "作成したいカテゴリーのタイトルを設定してください",
 					Required:    true,
-				},
-				{
-					Type: discordgo.ApplicationCommandOptionString,
 				},
 			},
 		},
@@ -32,17 +29,29 @@ func (c *AddPrivateCategoryCommands) CreateCommand() []*discordgo.ApplicationCom
 }
 
 func (c *AddPrivateCategoryCommands) Execute(s *discordgo.Session, i *discordgo.InteractionCreate) string {
-	from := i.ApplicationCommandData().Options[0].StringValue()
-	num := i.ApplicationCommandData().Options[1].IntValue()
-	channel := refs.Config.ModeratorChannelID
-	for _, opt := range i.ApplicationCommandData().Options {
-		if opt.Name == "channel" {
-			channel = opt.ChannelValue(s).ID
-		}
+	cat, err := s.GuildChannelCreateComplex(
+		refs.Config.GuildID,
+		discordgo.GuildChannelCreateData{
+			Name: i.ApplicationCommandData().Options[0].StringValue(),
+			Type: discordgo.ChannelTypeGuildCategory,
+			PermissionOverwrites: []*discordgo.PermissionOverwrite{
+				{
+					ID:   refs.Config.GuildID, // @everyone
+					Type: discordgo.PermissionOverwriteTypeRole,
+					Deny: discordgo.PermissionViewChannel,
+				},
+				{
+					ID:    i.Member.User.ID,
+					Type:  discordgo.PermissionOverwriteTypeMember,
+					Allow: refs.PrivateCategoryMemberPermission,
+				},
+			},
+		},
+	)
+	if err != nil {
+		utils.Log(err, "", "addPrivateCategory")
+		return "Error occurred when creating private category"
 	}
-	err := utils.DeleteMessages(channel, from, int(num), "Use of AdminDeleteMessages", s)
-	if err != 0 {
-		return "Error occurred when deleting messages"
-	}
-	return "Delete Messages Success"
+	refs.PrivateCategories = append(refs.PrivateCategories, cat.ID)
+	return "Success"
 }

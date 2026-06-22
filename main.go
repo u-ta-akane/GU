@@ -57,6 +57,10 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 		txt1 = "YuruboChannel ID"
 		txt2 = "set-yurubo-chan"
 		break
+	case "roll-entrance-chan":
+		guildStr, isTarget = data.(refs.GuildStructure)
+		txt1 = "Roll-Entrance Channel ID"
+		txt2 = "set-roll-entrance-chan"
 	case "defaultAuth":
 		guildStr, isTarget = data.(refs.GuildStructure)
 		txt1 = "Default Authority ID"
@@ -90,6 +94,10 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 			guildStr = refs.GuildStructure{
 				DefaultAuthorityID: *opt,
 			}
+		case "roll-entrance-chan":
+			guildStr = refs.GuildStructure{
+				RollEntranceChannelID: *opt,
+			}
 		case "guild":
 			guildStr = refs.GuildStructure{
 				GuildID: *opt,
@@ -114,6 +122,11 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 			break
 		}
 		guildStr.YURUBOChannelID = *opt
+	case "roll-entrance-chan":
+		if *opt == "" {
+			break
+		}
+		guildStr.RollEntranceChannelID = *opt
 	case "guild":
 		if *opt == "" {
 			break
@@ -134,6 +147,7 @@ func main() {
 	setYURUBOChannel := flag.String("set-yurubo-chan", "", "Enter YURUBO Channel ID")
 	setGuildID := flag.String("set-guild-id", "", "Enter Guild ID")
 	setDefaultAuthority := flag.String("set-default-authority", "", "Enter Default Authority ID")
+	setRollEntranceChannelID := flag.String("set-roll-entrance-chan", "", "Enter Roll-Entrance Channel ID")
 	flag.Parse()
 	secrets := utils.JSONFM.Read("secrets.json")
 	guildStr := utils.JSONFM.Read("guildStructure.json")
@@ -141,6 +155,7 @@ func main() {
 	guildStr = checkInfo(guildStr, setModerateChannel, "moderator")
 	guildStr = checkInfo(guildStr, setYURUBOChannel, "YURUBO")
 	guildStr = checkInfo(guildStr, setDefaultAuthority, "defaultAuth")
+	guildStr = checkInfo(guildStr, setRollEntranceChannelID, "roll-entrance-chan")
 	guildStr = checkInfo(guildStr, setGuildID, "guild")
 	if secrets == nil || guildStr == nil {
 		fmt.Printf("Some parameters are missing. Please fill all blank parameters.\n")
@@ -148,7 +163,7 @@ func main() {
 	}
 	refs.Secrets = secrets.(refs.SecretData)
 	refs.Config = guildStr.(refs.GuildStructure)
-	if refs.Secrets.BotToken == "" || refs.Config.ModeratorChannelID == "" || refs.Config.YURUBOChannelID == "" || refs.Config.GuildID == "" || refs.Config.DefaultAuthorityID == "" {
+	if refs.Secrets.BotToken == "" || refs.Config.ModeratorChannelID == "" || refs.Config.YURUBOChannelID == "" || refs.Config.GuildID == "" || refs.Config.DefaultAuthorityID == "" || refs.Config.RollEntranceChannelID == "" {
 		fmt.Printf("Some parameters are missing. Please fill all blank parameters.\n")
 		return
 	}
@@ -225,6 +240,14 @@ func main() {
 	if i == 0 {
 		log.Printf("Info : All commands have been registered")
 		utils.SendMessage(refs.Config.ModeratorChannelID, "Info : All commands have been registered", dgs)
+	}
+	if refs.Config.RollEntranceChannelID == "" {
+		utils.SendMessage(refs.Config.ModeratorChannelID, "Roll-Entrance Channel ID is empty", dgs)
+		log.Println("Roll-Entrance Channel ID is empty")
+	}
+	if refs.Config.RollEntranceMessageID == "" {
+		utils.SendMessage(refs.Config.ModeratorChannelID, "Roll-Entrance Message ID is empty", dgs)
+		log.Println("Roll-Entrance Message ID is empty")
 	}
 	SetupCommands(dgs, &cmds)
 	defer func(dgs *discordgo.Session) {

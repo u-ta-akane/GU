@@ -6,10 +6,12 @@ type SecretData struct {
 	BotToken string `json:"bot_token"`
 }
 type GuildStructure struct {
-	GuildID            string `json:"guild_id"`
-	YURUBOChannelID    string `json:"yurubo_channel_id"`
-	ModeratorChannelID string `json:"moderator_channel_id"`
-	DefaultAuthorityID string `json:"default_authority_id"`
+	GuildID               string `json:"guild_id"`
+	YURUBOChannelID       string `json:"yurubo_channel_id"`
+	ModeratorChannelID    string `json:"moderator_channel_id"`
+	DefaultAuthorityID    string `json:"default_authority_id"`
+	RollEntranceChannelID string `json:"roll_entrance_channel_id"`
+	RollEntranceMessageID string `json:"roll_entrance_message_id"`
 }
 
 var (
@@ -54,6 +56,10 @@ const (
 )
 
 const StopRecode uint8 = 0
+
+const PrivateCategoryMemberPermission int64 = discordgo.PermissionSendMessages | discordgo.PermissionViewChannel | discordgo.PermissionReadMessageHistory | discordgo.PermissionAddReactions | discordgo.PermissionMentionEveryone | discordgo.PermissionVoiceConnect | discordgo.PermissionUseExternalEmojis | discordgo.PermissionChangeNickname | discordgo.PermissionUseApplicationCommands | discordgo.PermissionCreatePublicThreads | discordgo.PermissionSendMessagesInThreads | discordgo.PermissionUseEmbeddedActivities
+
+var PrivateCategories = make([]string, 0)
 
 // JobData は、チーム、cronスケジュール、および役職を持つジョブの構造体
 type JobData struct {
