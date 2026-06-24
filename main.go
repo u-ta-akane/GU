@@ -257,6 +257,11 @@ func main() {
 			utils.SendMessage(refs.Config.ModeratorChannelID, err.Error(), dgs)
 		}
 	}(dgs)
+	channels, _ := dgs.GuildChannels(refs.Config.GuildID)
+	for _, channel := range channels {
+		if strings.Contains(channel.Name, "priv") {
+		}
+	}
 	refs.ReflashRoleData(dgs)
 	utils.SendMessage(refs.Config.ModeratorChannelID, "Reflashed RoleData successfully", dgs)
 	utils.SendMessage(refs.Config.ModeratorChannelID, "Bot started successfully", dgs)
