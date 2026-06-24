@@ -32,7 +32,7 @@ func (c *AddPrivateCategoryCommands) Execute(s *discordgo.Session, i *discordgo.
 	cat, err := s.GuildChannelCreateComplex(
 		refs.Config.GuildID,
 		discordgo.GuildChannelCreateData{
-			Name: i.ApplicationCommandData().Options[0].StringValue(),
+			Name: "priv-" + i.ApplicationCommandData().Options[0].StringValue(),
 			Type: discordgo.ChannelTypeGuildCategory,
 			PermissionOverwrites: []*discordgo.PermissionOverwrite{
 				{

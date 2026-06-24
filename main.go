@@ -4,6 +4,7 @@ import (
 	"GU/apps"
 	"GU/commands"
 	"GU/commands/admin"
+	"GU/commands/trpg"
 	"GU/refs"
 	"GU/utils"
 	"errors"
@@ -210,6 +211,7 @@ func main() {
 		&admin.AdminDeleteMessagesCommands{},
 		&admin.AdminStopBotCommand{},
 		&admin.AdminReflashRoleDataCommand{},
+		&trpg.TrpgStartCommand{},
 	}
 	createdCommands := func() []*discordgo.ApplicationCommand {
 		apps.Ns.InitializeSchedule()
@@ -260,6 +262,7 @@ func main() {
 	channels, _ := dgs.GuildChannels(refs.Config.GuildID)
 	for _, channel := range channels {
 		if strings.Contains(channel.Name, "priv") {
+			refs.PrivateCategories = append(refs.PrivateCategories, channel.ID)
 		}
 	}
 	refs.ReflashRoleData(dgs)

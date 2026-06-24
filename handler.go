@@ -60,6 +60,10 @@ func onInteraction(dgs *discordgo.Session, i *discordgo.InteractionCreate) {
 	if strings.Contains(data.CustomID, "vote") {
 		utils.MakeModal(dgs, i, data.CustomID)
 	}
+
+	for _, channel := range refs.PrivateCategories{
+		if channel == i.ChannelID
+	}
 	switch data.CustomID {
 
 	default:
