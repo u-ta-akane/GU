@@ -9,6 +9,8 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+var removeOnReactionAddHandler func()
+
 // サーバーにユーザーが参加した時のハンドラー
 func onMemberAdd(dgs *discordgo.Session, m *discordgo.GuildMemberAdd) {
 	err := dgs.GuildMemberRoleAdd(
@@ -19,6 +21,13 @@ func onMemberAdd(dgs *discordgo.Session, m *discordgo.GuildMemberAdd) {
 	)
 	if err != nil {
 		utils.ErrorChannel <- err
+	}
+}
+
+func onReactionAdd(dgs *discordgo.Session, m *discordgo.MessageReactionAdd) {
+	if m.MessageID == refs.Config.RollEntranceMessageID {
+		switch m.Emoji.Name {
+		}
 	}
 }
 
@@ -61,9 +70,6 @@ func onInteraction(dgs *discordgo.Session, i *discordgo.InteractionCreate) {
 		utils.MakeModal(dgs, i, data.CustomID)
 	}
 
-	for _, channel := range refs.PrivateCategories{
-		if channel == i.ChannelID
-	}
 	switch data.CustomID {
 
 	default:

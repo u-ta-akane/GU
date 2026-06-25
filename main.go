@@ -250,6 +250,8 @@ func main() {
 	if refs.Config.RollEntranceMessageID == "" {
 		utils.SendMessage(refs.Config.ModeratorChannelID, "Roll-Entrance Message ID is empty", dgs)
 		log.Println("Roll-Entrance Message ID is empty")
+	} else {
+		removeOnReactionAddHandler = dgs.AddHandler(onReactionAdd)
 	}
 	SetupCommands(dgs, &cmds)
 	defer func(dgs *discordgo.Session) {
@@ -265,6 +267,7 @@ func main() {
 			refs.PrivateCategories = append(refs.PrivateCategories, channel.ID)
 		}
 	}
+	utils.SendMessage(refs.Config.ModeratorChannelID, "Registered Private Categories", dgs)
 	refs.ReflashRoleData(dgs)
 	utils.SendMessage(refs.Config.ModeratorChannelID, "Reflashed RoleData successfully", dgs)
 	utils.SendMessage(refs.Config.ModeratorChannelID, "Bot started successfully", dgs)
