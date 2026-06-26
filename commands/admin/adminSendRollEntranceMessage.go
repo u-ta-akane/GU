@@ -13,7 +13,14 @@ func (c *AdminSendRollEntranceMessageCommand) CreateCommand() []*discordgo.Appli
 		{
 			Name:        "a-resend-roll-entrance",
 			Description: "AdminTestMessage",
-			Options:     []*discordgo.ApplicationCommandOption{},
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "old message",
+					Description: "Enter old entrance message(if any)",
+					Required:    false,
+				},
+			},
 		},
 	}
 
@@ -29,6 +36,12 @@ func (c *AdminSendRollEntranceMessageCommand) Execute(s *discordgo.Session, i *d
 		Fields:      []*discordgo.MessageEmbedField{},
 		Color:       0x500000,
 	}
+	if refs.Config.RollEntranceMessageID != "" {
+		err := s.ChannelMessageDelete(refs.Config.RollEntranceChannelID, refs.Config.RollEntranceMessageID)
+		if err != nil {
+			utils.Log(err, "", "adminRollEntranceMessage")
+		}
+	}
 	msg, err := s.ChannelMessageSendEmbed(refs.Config.RollEntranceChannelID, embed)
 	if err != nil {
 		utils.Log(err, "", "adminSendRollEntranceMessageCommand")
@@ -40,5 +53,24 @@ func (c *AdminSendRollEntranceMessageCommand) Execute(s *discordgo.Session, i *d
 		utils.Log(err, "", "adminSendRollEntranceMessageCommand")
 		return "IO Error"
 	}
+	chs, _ := s.GuildChannels(refs.Config.GuildID)
+	for key, _ := range refs.PrivateCategories {
+		for _, ch := range chs {
+			if ch.ID == key {
+				embed.Description += "\n:" + refs.PrivateCategories[key] + ": : " + ch.Name
+			}
+		}
+		err = s.MessageReactionAdd(refs.Config.RollEntranceChannelID, msg.ID, refs.PrivateCategories[key])
+		if err != nil {
+			utils.Log(err, "", "adminSendRollEntranceMessageCommand")
+		}
+	}
+	_, err = s.ChannelMessageEditComplex(&discordgo.MessageEdit{
+		ID:      msg.ID,
+		Channel: refs.Config.RollEntranceChannelID,
+		Embeds: &[]*discordgo.MessageEmbed{
+			embed,
+		},
+	})
 	return "Success"
 }

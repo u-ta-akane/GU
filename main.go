@@ -262,9 +262,9 @@ func main() {
 		}
 	}(dgs)
 	channels, _ := dgs.GuildChannels(refs.Config.GuildID)
-	for _, channel := range channels {
+	for idx, channel := range channels {
 		if strings.Contains(channel.Name, "priv") {
-			refs.PrivateCategories = append(refs.PrivateCategories, channel.ID)
+			refs.PrivateCategories[channel.ID] = refs.PrivateCategoryEmojis[idx]
 		}
 	}
 	utils.SendMessage(refs.Config.ModeratorChannelID, "Registered Private Categories", dgs)

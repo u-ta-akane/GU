@@ -52,6 +52,6 @@ func (c *AddPrivateCategoryCommands) Execute(s *discordgo.Session, i *discordgo.
 		utils.Log(err, "", "addPrivateCategory")
 		return "Error occurred when creating private category"
 	}
-	refs.PrivateCategories = append(refs.PrivateCategories, cat.ID)
+	refs.PrivateCategories[cat.ID] = ""
 	return "Success"
 }

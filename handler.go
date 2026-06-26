@@ -26,7 +26,14 @@ func onMemberAdd(dgs *discordgo.Session, m *discordgo.GuildMemberAdd) {
 
 func onReactionAdd(dgs *discordgo.Session, m *discordgo.MessageReactionAdd) {
 	if m.MessageID == refs.Config.RollEntranceMessageID {
-		switch m.Emoji.Name {
+		for key, value := range refs.PrivateCategories {
+			if m.Emoji.Name == value {
+				apps.IOPrivateCategoryMember(dgs, m.Member.User.ID, key)
+			}
+		}
+		err := dgs.MessageReactionRemove(refs.Config.RollEntranceChannelID, refs.Config.RollEntranceMessageID, m.Emoji.ID, m.Member.User.ID)
+		if err != nil {
+			utils.Log(err, "", "onReactionAdd")
 		}
 	}
 }

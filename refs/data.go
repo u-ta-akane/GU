@@ -59,7 +59,9 @@ const StopRecode uint8 = 0
 
 const PrivateCategoryMemberPermission int64 = discordgo.PermissionSendMessages | discordgo.PermissionViewChannel | discordgo.PermissionReadMessageHistory | discordgo.PermissionAddReactions | discordgo.PermissionMentionEveryone | discordgo.PermissionVoiceConnect | discordgo.PermissionUseExternalEmojis | discordgo.PermissionChangeNickname | discordgo.PermissionUseApplicationCommands | discordgo.PermissionCreatePublicThreads | discordgo.PermissionSendMessagesInThreads | discordgo.PermissionUseEmbeddedActivities
 
-var PrivateCategories = make([]string, 0)
+var PrivateCategories = make(map[string]string)
+
+var PrivateCategoryEmojis = []string{":zero:", ":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:"}
 
 // JobData は、チーム、cronスケジュール、および役職を持つジョブの構造体
 type JobData struct {
