@@ -40,25 +40,59 @@ func onReactionAdd(dgs *discordgo.Session, m *discordgo.MessageReactionAdd) {
 
 func setupOnInteractionHandler(dgs *discordgo.Session, cmds *[refs.NumberOfCommands]Command) {
 	dgs.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if i.Type == discordgo.InteractionModalSubmit {
-			data := i.ModalSubmitData()
-			for _, comp := range data.Components {
-				for _, c := range comp.(*discordgo.ActionsRow).Components {
-					input := c.(*discordgo.TextInput)
-					for _, room := range apps.RoomList {
-						if strings.Contains(input.CustomID, room.VC.Name) {
-							room.ShowAnswer(dgs, apps.Answer{
-								CustomID: input.CustomID,
-								Value:    input.Value,
-							})
-						}
-					}
-				}
-			}
-
-		}
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
+			switch i.ApplicationCommandData().Name {
+			case "a-test-message":
+				AdminHandler(s, i, cmds, refs.IndexAdminTestMessage)
+			case "a-delete-messages":
+				AdminHandler(s, i, cmds, refs.IndexAdminDeleteMessages)
+			case "a-stop-bot":
+				AdminHandler(s, i, cmds, refs.IndexAdminStopBot)
+			case "a-delete-role-data":
+				AdminHandler(s, i, cmds, refs.IndexAdminReflashRoleData)
+			case "start":
+				TrpgHandler(s, i, cmds, refs.IndexTrpgStart)
+			case "add-priv-category":
+				response := (cmds[refs.IndexAddPrivateCategory]).Execute(s, i)
+				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: response,
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+				if err != nil {
+					utils.Log(err, "", "SetupCommands")
+					return
+				}
+			case "ゆるぼ":
+				response := (cmds[refs.IndexAddYURUBO]).Execute(s, i)
+				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
+					Data: &discordgo.InteractionResponseData{
+						Content: response,
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+				if err != nil {
+					utils.Log(err, "", "SetupCommands")
+					return
+				}
+			case "delete-ゆるぼ":
+				response := (cmds[refs.IndexDeleteYURUBO]).Execute(s, i)
+				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
+					Data: &discordgo.InteractionResponseData{
+						Content: response,
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+				if err != nil {
+					utils.Log(err, "", "SetupCommands")
+					return
+				}
+			}
 		case discordgo.InteractionModalSubmit:
 			data := i.ModalSubmitData()
 			if strings.Contains(data.CustomID, "mainChannel") {
@@ -68,6 +102,14 @@ func setupOnInteractionHandler(dgs *discordgo.Session, cmds *[refs.NumberOfComma
 							actionRow := row.(*discordgo.ActionsRow)
 							for _, comp := range actionRow.Components {
 								input := comp.(*discordgo.TextInput)
+								for _, r := range apps.RoomList {
+									if strings.Contains(input.CustomID, r.VC.Name) {
+										r.ShowAnswer(dgs, apps.Answer{
+											CustomID: input.CustomID,
+											Value:    input.Value,
+										})
+									}
+								}
 								if strings.Contains(input.CustomID, "MainChannel") {
 									room.MainChannelID = input.Value
 								}
@@ -79,57 +121,6 @@ func setupOnInteractionHandler(dgs *discordgo.Session, cmds *[refs.NumberOfComma
 			}
 			if strings.Contains(data.CustomID, "vote") {
 				utils.MakeModal(dgs, i, data.CustomID)
-			}
-		}
-		switch i.ApplicationCommandData().Name {
-		case "a-test-message":
-			AdminHandler(s, i, cmds, refs.IndexAdminTestMessage)
-		case "a-delete-messages":
-			AdminHandler(s, i, cmds, refs.IndexAdminDeleteMessages)
-		case "a-stop-bot":
-			AdminHandler(s, i, cmds, refs.IndexAdminStopBot)
-		case "a-delete-role-data":
-			AdminHandler(s, i, cmds, refs.IndexAdminReflashRoleData)
-		case "start":
-			TrpgHandler(s, i, cmds, refs.IndexTrpgStart)
-		case "add-priv-category":
-			response := (cmds[refs.IndexAddPrivateCategory]).Execute(s, i)
-			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: response,
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
-			if err != nil {
-				utils.Log(err, "", "SetupCommands")
-				return
-			}
-		case "ゆるぼ":
-			response := (cmds[refs.IndexAddYURUBO]).Execute(s, i)
-			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
-				Data: &discordgo.InteractionResponseData{
-					Content: response,
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
-			if err != nil {
-				utils.Log(err, "", "SetupCommands")
-				return
-			}
-		case "delete-ゆるぼ":
-			response := (cmds[refs.IndexDeleteYURUBO]).Execute(s, i)
-			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
-				Data: &discordgo.InteractionResponseData{
-					Content: response,
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
-			if err != nil {
-				utils.Log(err, "", "SetupCommands")
-				return
 			}
 		}
 	})
