@@ -12,8 +12,8 @@ type AddPrivateCategoryCommands struct{}
 func (c *AddPrivateCategoryCommands) CreateCommand() []*discordgo.ApplicationCommand {
 	dc := []*discordgo.ApplicationCommand{
 		{
-			Name:        "name",
-			Description: "作成したいカテゴリーのタイトルを設定してください",
+			Name:        "add-priv-category",
+			Description: "プライベートカテゴリーを作成します",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,

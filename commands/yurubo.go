@@ -110,7 +110,10 @@ func (c *AddYURUBOCommand) Execute(s *discordgo.Session, i *discordgo.Interactio
 		return "ゆるぼの追加に失敗しました"
 	}
 	utils.JobDataSlice = append(utils.JobDataSlice, YURUBO)
-	utils.JSONFM.Write("jobData.json", utils.JobDataSlice)
+	err := utils.JSONFM.Write("jobData.json", utils.JobDataSlice)
+	if err != nil {
+		utils.Log(err, "", "AddYURUBO")
+	}
 	return fmt.Sprintf("新しい募集があります！ @%s", YURUBO.Role)
 }
 
@@ -139,10 +142,16 @@ func (c *DeleteYURUBOCommand) CreateCommand() []*discordgo.ApplicationCommand {
 func (c *DeleteYURUBOCommand) Execute(s *discordgo.Session, i *discordgo.InteractionCreate) string {
 	status, res, jt := apps.Ns.RemoveJob(i.ApplicationCommandData().Options[0].StringValue())
 	if status == 16 {
-		utils.JSONFM.Write(time.Now().Format(time.DateOnly)+"-backup-job.json", utils.JobDataSlice)
+		err := utils.JSONFM.Write(time.Now().Format(time.DateOnly)+"-backup-job.json", utils.JobDataSlice)
+		if err != nil {
+			utils.Log(err, "", "DeleteYURUBO")
+		}
 		return fmt.Sprintf("エラー: このIDのジョブは見つかりません")
 	} else if res != "" {
-		utils.JSONFM.Write(time.Now().Format(time.DateOnly)+"-backup-job.json", utils.JobDataSlice)
+		err := utils.JSONFM.Write(time.Now().Format(time.DateOnly)+"-backup-job.json", utils.JobDataSlice)
+		if err != nil {
+			utils.Log(err, "", "DeleteYURUBO")
+		}
 		return fmt.Sprintf("一つ以上のゆるぼを削除できませんでした\n詳細 : \n%s", res)
 	}
 	res = ""

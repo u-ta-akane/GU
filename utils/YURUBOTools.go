@@ -177,6 +177,9 @@ func YURUBOPartyEdit(dgs *discordgo.Session, i *discordgo.InteractionCreate, id 
 			JobDataSlice[idx].Party = updatedJob.Party
 		}
 	}
-	JSONFM.Write("jobData.json", JobDataSlice)
+	err := JSONFM.Write("jobData.json", JobDataSlice)
+	if err != nil {
+		Log(err, "", "YURUBOPartyEdit")
+	}
 	return msgs
 }

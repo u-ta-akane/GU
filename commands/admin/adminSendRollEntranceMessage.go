@@ -29,7 +29,7 @@ func (c *AdminSendRollEntranceMessageCommand) CreateCommand() []*discordgo.Appli
 
 type AdminSendRollEntranceMessageCommand struct{}
 
-func (c *AdminSendRollEntranceMessageCommand) Execute(s *discordgo.Session, i *discordgo.InteractionCreate) string {
+func (c *AdminSendRollEntranceMessageCommand) Execute(s *discordgo.Session, _ *discordgo.InteractionCreate) string {
 	embed := &discordgo.MessageEmbed{
 		Title:       "その他",
 		Description: "プライベートカテゴリー",

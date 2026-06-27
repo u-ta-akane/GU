@@ -171,7 +171,6 @@ func main() {
 	sessionManager := &DiscordSessionManager{}
 	dgs = sessionManager.InitializeSession(refs.Secrets.BotToken)
 	dgs.AddHandler(onMemberAdd)
-	dgs.AddHandler(onInteraction)
 	dgs.AddHandler(TrpgTextHandler)
 	if err := dgs.Open(); err != nil {
 		var restErr *discordgo.RESTError
@@ -212,6 +211,7 @@ func main() {
 		&admin.AdminStopBotCommand{},
 		&admin.AdminReflashRoleDataCommand{},
 		&trpg.TrpgStartCommand{},
+		&commands.AddPrivateCategoryCommands{},
 	}
 	createdCommands := func() []*discordgo.ApplicationCommand {
 		apps.Ns.InitializeSchedule()
@@ -253,7 +253,7 @@ func main() {
 	} else {
 		removeOnReactionAddHandler = dgs.AddHandler(onReactionAdd)
 	}
-	SetupCommands(dgs, &cmds)
+	setupOnInteractionHandler(dgs, &cmds)
 	defer func(dgs *discordgo.Session) {
 		err := dgs.Close()
 		if err != nil {

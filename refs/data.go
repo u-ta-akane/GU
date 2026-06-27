@@ -45,14 +45,9 @@ const (
 	IndexAdminStopBot
 	IndexAdminReflashRoleData
 	IndexTrpgStart
-	IndexTrpgSetMute
+	IndexAddPrivateCategory
 	// NumberOfCommands この上にコマンドを追加する！
 	NumberOfCommands
-)
-
-const (
-	MakeTrpgTextHandler uint8 = iota
-	RemoveTrpgTextHandler
 )
 
 const StopRecode uint8 = 0
