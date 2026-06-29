@@ -171,7 +171,7 @@ func main() {
 	sessionManager := &DiscordSessionManager{}
 	dgs = sessionManager.InitializeSession(refs.Secrets.BotToken)
 	dgs.AddHandler(onMemberAdd)
-	dgs.AddHandler(TrpgTextHandler)
+	dgs.AddHandler(onMessageHandler)
 	if err := dgs.Open(); err != nil {
 		var restErr *discordgo.RESTError
 		switch {

@@ -12,7 +12,15 @@ import (
 	"github.com/pion/webrtc/v4/pkg/media/oggwriter"
 )
 
-var RoomList = make([]*Room, 0)
+var RoomList = []*Room{
+	{
+		ConsoleChannel: &discordgo.Channel{
+			Type: discordgo.ChannelTypeGuildText,
+			ID:   "",
+			Name: "dummy",
+		},
+	},
+}
 var UsingRecode uint8 = 0
 var ContinueRecodeChannel = make(chan uint8)
 
@@ -274,4 +282,16 @@ func (r *Room) Recode(s *discordgo.Session) {
 			}
 		}
 	}()
+}
+
+func StopRecode(room *Room) {
+	if room.IsRecording {
+		room.IsRecording = false
+		UsingRecode--
+		if UsingRecode == 0 {
+			ContinueRecodeChannel <- refs.StopRecode
+			return
+		}
+		utils.OrderSendMessage(room.ConsoleChannel.ID, "現在は録音中ではありません！")
+	}
 }
