@@ -83,6 +83,22 @@ func AdminHandler(s *discordgo.Session, i *discordgo.InteractionCreate, cmds *[r
 			utils.Log(err, "", "adminHandler")
 			return
 		}
-		break
+	case refs.IndexAdminSendRoleEntranceMessage:
+		result, e := utils.HasAuthority(s, i, refs.AuthorityRoleEntranceManagement)
+		response := "Authorization Error"
+		if e == 0 && result {
+			response = (cmds[refs.IndexAdminReflashRoleData]).Execute(s, i)
+		}
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
+			Data: &discordgo.InteractionResponseData{
+				Content: response,
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		if err != nil {
+			utils.Log(err, "", "adminHandler")
+			return
+		}
 	}
 }

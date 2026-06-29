@@ -26,13 +26,13 @@ func onMemberAdd(dgs *discordgo.Session, m *discordgo.GuildMemberAdd) {
 }
 
 func onReactionAdd(dgs *discordgo.Session, m *discordgo.MessageReactionAdd) {
-	if m.MessageID == refs.Config.RollEntranceMessageID {
+	if m.MessageID == refs.Config.RoleEntranceMessageID {
 		for key, value := range refs.PrivateCategories {
 			if m.Emoji.Name == value {
 				apps.IOPrivateCategoryMember(dgs, m.Member.User.ID, key)
 			}
 		}
-		err := dgs.MessageReactionRemove(refs.Config.RollEntranceChannelID, refs.Config.RollEntranceMessageID, m.Emoji.ID, m.Member.User.ID)
+		err := dgs.MessageReactionRemove(refs.Config.RoleEntranceChannelID, refs.Config.RoleEntranceMessageID, m.Emoji.ID, m.Member.User.ID)
 		if err != nil {
 			utils.Log(err, "", "onReactionAdd")
 		}
@@ -149,6 +149,8 @@ func setupOnInteractionHandler(dgs *discordgo.Session, cmds *[refs.NumberOfComma
 				AdminHandler(s, i, cmds, refs.IndexAdminStopBot)
 			case "a-delete-role-data":
 				AdminHandler(s, i, cmds, refs.IndexAdminReflashRoleData)
+			case "a-send-role-entrance":
+				AdminHandler(s, i, cmds, refs.IndexAdminSendRoleEntranceMessage)
 			case "start":
 				TrpgHandler(s, i, cmds, refs.IndexTrpgStart)
 			case "add-priv-category":
@@ -161,7 +163,7 @@ func setupOnInteractionHandler(dgs *discordgo.Session, cmds *[refs.NumberOfComma
 					},
 				})
 				if err != nil {
-					utils.Log(err, "", "SetupCommands")
+					utils.Log(err, "", "setupOnInteractionHandler")
 					return
 				}
 			case "ゆるぼ":

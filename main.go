@@ -58,10 +58,10 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 		txt1 = "YuruboChannel ID"
 		txt2 = "set-yurubo-chan"
 		break
-	case "roll-entrance-chan":
+	case "role-entrance-chan":
 		guildStr, isTarget = data.(refs.GuildStructure)
-		txt1 = "Roll-Entrance Channel ID"
-		txt2 = "set-roll-entrance-chan"
+		txt1 = "Role-Entrance Channel ID"
+		txt2 = "set-role-entrance-chan"
 	case "defaultAuth":
 		guildStr, isTarget = data.(refs.GuildStructure)
 		txt1 = "Default Authority ID"
@@ -95,9 +95,9 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 			guildStr = refs.GuildStructure{
 				DefaultAuthorityID: *opt,
 			}
-		case "roll-entrance-chan":
+		case "role-entrance-chan":
 			guildStr = refs.GuildStructure{
-				RollEntranceChannelID: *opt,
+				RoleEntranceChannelID: *opt,
 			}
 		case "guild":
 			guildStr = refs.GuildStructure{
@@ -123,11 +123,11 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 			break
 		}
 		guildStr.YURUBOChannelID = *opt
-	case "roll-entrance-chan":
+	case "role-entrance-chan":
 		if *opt == "" {
 			break
 		}
-		guildStr.RollEntranceChannelID = *opt
+		guildStr.RoleEntranceChannelID = *opt
 	case "guild":
 		if *opt == "" {
 			break
@@ -148,7 +148,7 @@ func main() {
 	setYURUBOChannel := flag.String("set-yurubo-chan", "", "Enter YURUBO Channel ID")
 	setGuildID := flag.String("set-guild-id", "", "Enter Guild ID")
 	setDefaultAuthority := flag.String("set-default-authority", "", "Enter Default Authority ID")
-	setRollEntranceChannelID := flag.String("set-roll-entrance-chan", "", "Enter Roll-Entrance Channel ID")
+	setRoleEntranceChannelID := flag.String("set-role-entrance-chan", "", "Enter Role-Entrance Channel ID")
 	flag.Parse()
 	secrets := utils.JSONFM.Read("secrets.json")
 	guildStr := utils.JSONFM.Read("guildStructure.json")
@@ -156,7 +156,7 @@ func main() {
 	guildStr = checkInfo(guildStr, setModerateChannel, "moderator")
 	guildStr = checkInfo(guildStr, setYURUBOChannel, "YURUBO")
 	guildStr = checkInfo(guildStr, setDefaultAuthority, "defaultAuth")
-	guildStr = checkInfo(guildStr, setRollEntranceChannelID, "roll-entrance-chan")
+	guildStr = checkInfo(guildStr, setRoleEntranceChannelID, "role-entrance-chan")
 	guildStr = checkInfo(guildStr, setGuildID, "guild")
 	if secrets == nil || guildStr == nil {
 		fmt.Printf("Some parameters are missing. Please fill all blank parameters.\n")
@@ -164,7 +164,7 @@ func main() {
 	}
 	refs.Secrets = secrets.(refs.SecretData)
 	refs.Config = guildStr.(refs.GuildStructure)
-	if refs.Secrets.BotToken == "" || refs.Config.ModeratorChannelID == "" || refs.Config.YURUBOChannelID == "" || refs.Config.GuildID == "" || refs.Config.DefaultAuthorityID == "" || refs.Config.RollEntranceChannelID == "" {
+	if refs.Secrets.BotToken == "" || refs.Config.ModeratorChannelID == "" || refs.Config.YURUBOChannelID == "" || refs.Config.GuildID == "" || refs.Config.DefaultAuthorityID == "" || refs.Config.RoleEntranceChannelID == "" {
 		fmt.Printf("Some parameters are missing. Please fill all blank parameters.\n")
 		return
 	}
@@ -212,6 +212,7 @@ func main() {
 		&admin.AdminReflashRoleDataCommand{},
 		&trpg.TrpgStartCommand{},
 		&commands.AddPrivateCategoryCommands{},
+		&admin.AdminSendRoleEntranceMessageCommand{},
 	}
 	createdCommands := func() []*discordgo.ApplicationCommand {
 		apps.Ns.InitializeSchedule()
@@ -243,13 +244,13 @@ func main() {
 		log.Printf("Info : All commands have been registered")
 		utils.SendMessage(refs.Config.ModeratorChannelID, "Info : All commands have been registered", dgs)
 	}
-	if refs.Config.RollEntranceChannelID == "" {
-		utils.SendMessage(refs.Config.ModeratorChannelID, "Roll-Entrance Channel ID is empty", dgs)
-		log.Println("Roll-Entrance Channel ID is empty")
+	if refs.Config.RoleEntranceChannelID == "" {
+		utils.SendMessage(refs.Config.ModeratorChannelID, "Role-Entrance Channel ID is empty", dgs)
+		log.Println("Role-Entrance Channel ID is empty")
 	}
-	if refs.Config.RollEntranceMessageID == "" {
-		utils.SendMessage(refs.Config.ModeratorChannelID, "Roll-Entrance Message ID is empty", dgs)
-		log.Println("Roll-Entrance Message ID is empty")
+	if refs.Config.RoleEntranceMessageID == "" {
+		utils.SendMessage(refs.Config.ModeratorChannelID, "Role-Entrance Message ID is empty", dgs)
+		log.Println("Role-Entrance Message ID is empty")
 	} else {
 		removeOnReactionAddHandler = dgs.AddHandler(onReactionAdd)
 	}
@@ -262,9 +263,14 @@ func main() {
 		}
 	}(dgs)
 	channels, _ := dgs.GuildChannels(refs.Config.GuildID)
-	for idx, channel := range channels {
+	idx := 0
+	for _, channel := range channels {
 		if strings.Contains(channel.Name, "priv") {
+			if idx > len(refs.PrivateCategoryEmojis) {
+				log.Fatal("Private Category Emojis are too little")
+			}
 			refs.PrivateCategories[channel.ID] = refs.PrivateCategoryEmojis[idx]
+			idx++
 		}
 	}
 	utils.SendMessage(refs.Config.ModeratorChannelID, "Registered Private Categories", dgs)

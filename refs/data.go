@@ -10,8 +10,8 @@ type GuildStructure struct {
 	YURUBOChannelID       string `json:"yurubo_channel_id"`
 	ModeratorChannelID    string `json:"moderator_channel_id"`
 	DefaultAuthorityID    string `json:"default_authority_id"`
-	RollEntranceChannelID string `json:"roll_entrance_channel_id"`
-	RollEntranceMessageID string `json:"roll_entrance_message_id"`
+	RoleEntranceChannelID string `json:"role_entrance_channel_id"`
+	RoleEntranceMessageID string `json:"role_entrance_message_id"`
 }
 
 var (
@@ -35,6 +35,7 @@ const (
 	AuthoritySendAdminMessage
 	AuthorityBotManagement
 	AuthorityReflashData
+	AuthorityRoleEntranceManagement
 )
 
 const (
@@ -46,6 +47,7 @@ const (
 	IndexAdminReflashRoleData
 	IndexTrpgStart
 	IndexAddPrivateCategory
+	IndexAdminSendRoleEntranceMessage
 	// NumberOfCommands この上にコマンドを追加する！
 	NumberOfCommands
 )

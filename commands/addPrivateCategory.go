@@ -3,6 +3,8 @@ package commands
 import (
 	"GU/refs"
 	"GU/utils"
+	"fmt"
+	"log"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -32,7 +34,7 @@ func (c *AddPrivateCategoryCommands) Execute(s *discordgo.Session, i *discordgo.
 	cat, err := s.GuildChannelCreateComplex(
 		refs.Config.GuildID,
 		discordgo.GuildChannelCreateData{
-			Name: "priv-" + i.ApplicationCommandData().Options[0].StringValue(),
+			Name: fmt.Sprintf("priv-%s", i.ApplicationCommandData().Options[0].StringValue()),
 			Type: discordgo.ChannelTypeGuildCategory,
 			PermissionOverwrites: []*discordgo.PermissionOverwrite{
 				{
@@ -43,7 +45,7 @@ func (c *AddPrivateCategoryCommands) Execute(s *discordgo.Session, i *discordgo.
 				{
 					ID:    i.Member.User.ID,
 					Type:  discordgo.PermissionOverwriteTypeMember,
-					Allow: refs.PrivateCategoryMemberPermission,
+					Allow: discordgo.PermissionViewChannel,
 				},
 			},
 		},
@@ -52,6 +54,7 @@ func (c *AddPrivateCategoryCommands) Execute(s *discordgo.Session, i *discordgo.
 		utils.Log(err, "", "addPrivateCategory")
 		return "Error occurred when creating private category"
 	}
+	log.Printf("created category :\n  Name : %s\n  Members : %v", cat.Name, cat.Members)
 	refs.PrivateCategories[cat.ID] = ""
 	return "Success"
 }
