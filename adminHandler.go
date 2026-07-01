@@ -87,7 +87,7 @@ func AdminHandler(s *discordgo.Session, i *discordgo.InteractionCreate, cmds *[r
 		result, e := utils.HasAuthority(s, i, refs.AuthorityRoleEntranceManagement)
 		response := "Authorization Error"
 		if e == 0 && result {
-			response = (cmds[refs.IndexAdminReflashRoleData]).Execute(s, i)
+			response = (cmds[refs.IndexAdminSendRoleEntranceMessage]).Execute(s, i)
 		}
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
