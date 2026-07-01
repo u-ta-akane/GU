@@ -55,6 +55,33 @@ func (c *AddPrivateCategoryCommands) Execute(s *discordgo.Session, i *discordgo.
 		return "Error occurred when creating private category"
 	}
 	log.Printf("created category :\n  Name : %s\n  Members : %v", cat.Name, cat.Members)
+	_, err = s.GuildChannelCreateComplex(refs.Config.GuildID, discordgo.GuildChannelCreateData{
+		Name:     "はじめに",
+		Type:     discordgo.ChannelTypeGuildText,
+		ParentID: cat.ID,
+	})
+	if err != nil {
+		utils.Log(err, "", "addPrivateCategory")
+		return "Failed"
+	}
+	_, err = s.GuildChannelCreateComplex(refs.Config.GuildID, discordgo.GuildChannelCreateData{
+		Name:     "雑談",
+		Type:     discordgo.ChannelTypeGuildText,
+		ParentID: cat.ID,
+	})
+	if err != nil {
+		utils.Log(err, "", "addPrivateCategory")
+		return "Failed"
+	}
+	_, err = s.GuildChannelCreateComplex(refs.Config.GuildID, discordgo.GuildChannelCreateData{
+		Name:     "VC",
+		Type:     discordgo.ChannelTypeGuildVoice,
+		ParentID: cat.ID,
+	})
+	if err != nil {
+		utils.Log(err, "", "addPrivateCategory")
+		return "Failed"
+	}
 	refs.PrivateCategories[cat.ID] = ""
 	return "Success"
 }
