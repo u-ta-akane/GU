@@ -32,8 +32,8 @@ type AdminSendRoleEntranceMessageCommand struct{}
 
 func (c *AdminSendRoleEntranceMessageCommand) Execute(s *discordgo.Session, i *discordgo.InteractionCreate) string {
 	embed := &discordgo.MessageEmbed{
-		Title:       "その他",
-		Description: "プライベートカテゴリー",
+		Title:       "プライベートカテゴリー",
+		Description: "",
 		Fields:      []*discordgo.MessageEmbedField{},
 		Color:       0x500000,
 	}
@@ -58,7 +58,7 @@ func (c *AdminSendRoleEntranceMessageCommand) Execute(s *discordgo.Session, i *d
 		utils.Log(err, "", "adminSendRollEntranceMessageCommand")
 		return "Failed"
 	}
-	utils.Log(nil, fmt.Sprintf("MessageID : %s\nChannelID : %s", msg.ID, msg.ChannelID), "AdminSendRoleEntranceMessage")
+	utils.Log(nil, fmt.Sprintf("MessageID : %s\nChannelID : %s\nChannelName : %s", msg.ID, msg.ChannelID), "AdminSendRoleEntranceMessage")
 	refs.Config.RoleEntranceMessageID = msg.ID
 	err = utils.JSONFM.Write("config.json", refs.Config)
 	if err != nil {
@@ -70,11 +70,11 @@ func (c *AdminSendRoleEntranceMessageCommand) Execute(s *discordgo.Session, i *d
 		for _, ch := range chs {
 			if ch.ID == cat.CategoryID {
 				embed.Description += "\n" + cat.Emoji + " : " + ch.Name
+				err = s.MessageReactionAdd(refs.Config.RoleEntranceChannelID, msg.ID, cat.Emoji)
+				if err != nil {
+					utils.Log(err, "", "adminSendRollEntranceMessageCommand")
+				}
 			}
-		}
-		err = s.MessageReactionAdd(refs.Config.RoleEntranceChannelID, msg.ID, cat.Emoji)
-		if err != nil {
-			utils.Log(err, "", "adminSendRollEntranceMessageCommand")
 		}
 	}
 	_, err = s.ChannelMessageEditComplex(&discordgo.MessageEdit{

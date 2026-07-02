@@ -5,7 +5,6 @@ import (
 	"GU/refs"
 	"GU/utils"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -27,11 +26,13 @@ func onMemberAdd(dgs *discordgo.Session, m *discordgo.GuildMemberAdd) {
 }
 
 func onReactionAdd(dgs *discordgo.Session, m *discordgo.MessageReactionAdd) {
-	log.Printf("aaa")
 	if m.MessageID == refs.Config.RoleEntranceMessageID {
+		if m.Member.User.ID == dgs.State.User.ID {
+			return
+		}
 		for _, cat := range refs.PrivateCategories {
 			if m.Emoji.Name == cat.EmojiName {
-				apps.IOPrivateCategoryMember(dgs, m.Member.User.ID, cat.CategoryID)
+				apps.IOPrivateCategoryMember(dgs, m.Member.User, cat.CategoryID)
 			}
 		}
 		err := dgs.MessageReactionRemove(refs.Config.RoleEntranceChannelID, refs.Config.RoleEntranceMessageID, m.Emoji.Name, m.Member.User.ID)

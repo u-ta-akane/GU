@@ -82,6 +82,10 @@ func (c *AddPrivateCategoryCommands) Execute(s *discordgo.Session, i *discordgo.
 		utils.Log(err, "", "addPrivateCategory")
 		return "Failed"
 	}
-	refs.PrivateCategories[cat.ID] = ""
+	for _, pc := range refs.PrivateCategories {
+		if pc.CategoryID == "" {
+			pc.CategoryID = cat.ID
+		}
+	}
 	return "Success"
 }
