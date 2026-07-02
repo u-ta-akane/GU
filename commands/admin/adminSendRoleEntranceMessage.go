@@ -12,7 +12,7 @@ func (c *AdminSendRoleEntranceMessageCommand) CreateCommand() []*discordgo.Appli
 
 	dc := []*discordgo.ApplicationCommand{
 		{
-			Name:        "a-send-roll-entrance",
+			Name:        "a-send-role-entrance",
 			Description: "AdminTestMessage",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
@@ -30,7 +30,7 @@ func (c *AdminSendRoleEntranceMessageCommand) CreateCommand() []*discordgo.Appli
 
 type AdminSendRoleEntranceMessageCommand struct{}
 
-func (c *AdminSendRoleEntranceMessageCommand) Execute(s *discordgo.Session, _ *discordgo.InteractionCreate) string {
+func (c *AdminSendRoleEntranceMessageCommand) Execute(s *discordgo.Session, i *discordgo.InteractionCreate) string {
 	embed := &discordgo.MessageEmbed{
 		Title:       "その他",
 		Description: "プライベートカテゴリー",
@@ -41,6 +41,16 @@ func (c *AdminSendRoleEntranceMessageCommand) Execute(s *discordgo.Session, _ *d
 		err := s.ChannelMessageDelete(refs.Config.RoleEntranceChannelID, refs.Config.RoleEntranceMessageID)
 		if err != nil {
 			utils.Log(err, "", "adminRollEntranceMessage")
+		}
+	}
+	for _, data := range i.ApplicationCommandData().Options {
+		if data.Name == "old-message" {
+			if data.Value != "" {
+				err := s.ChannelMessageDelete(refs.Config.RoleEntranceChannelID, data.Value.(string))
+				if err != nil {
+					utils.Log(err, "", "adminRollEntranceMessage")
+				}
+			}
 		}
 	}
 	msg, err := s.ChannelMessageSendEmbed(refs.Config.RoleEntranceChannelID, embed)
@@ -56,13 +66,13 @@ func (c *AdminSendRoleEntranceMessageCommand) Execute(s *discordgo.Session, _ *d
 		return "IO Error"
 	}
 	chs, _ := s.GuildChannels(refs.Config.GuildID)
-	for key, _ := range refs.PrivateCategories {
+	for _, cat := range refs.PrivateCategories {
 		for _, ch := range chs {
-			if ch.ID == key {
-				embed.Description += "\n:" + refs.PrivateCategories[key] + ": : " + ch.Name
+			if ch.ID == cat.CategoryID {
+				embed.Description += "\n" + cat.Emoji + " : " + ch.Name
 			}
 		}
-		err = s.MessageReactionAdd(refs.Config.RoleEntranceChannelID, msg.ID, refs.PrivateCategories[key])
+		err = s.MessageReactionAdd(refs.Config.RoleEntranceChannelID, msg.ID, cat.Emoji)
 		if err != nil {
 			utils.Log(err, "", "adminSendRollEntranceMessageCommand")
 		}

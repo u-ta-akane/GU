@@ -28,6 +28,16 @@ var (
 // DiscordSessionManager Discordセッションを管理する構造体
 type DiscordSessionManager struct{}
 
+type setupProgress struct {
+	Now uint8
+	All uint8
+}
+
+func (s *setupProgress) printProgress() string {
+	s.Now++
+	return fmt.Sprintf("(%d / %d)  ", s.Now, s.All)
+}
+
 func (d *DiscordSessionManager) InitializeSession(token string) *discordgo.Session {
 	dg, err := discordgo.New("Bot " + token)
 	if err != nil {
@@ -143,6 +153,11 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 }
 
 func main() {
+	progress := setupProgress{
+		Now: 0,
+		All: 3 + refs.NumberOfCommands,
+	}
+	refs.SetupEmojis()
 	newToken := flag.String("set-bot-token", "", "Enter Bot Token")
 	setModerateChannel := flag.String("set-moderator-chan", "", "Enter Moderate Channel ID")
 	setYURUBOChannel := flag.String("set-yurubo-chan", "", "Enter YURUBO Channel ID")
@@ -222,7 +237,7 @@ func main() {
 		} else {
 			utils.JobDataSlice = make([]refs.JobData, 0)
 		}
-		utils.SendMessage(refs.Config.ModeratorChannelID, "Finished Scheduler Initialization", dgs)
+		utils.SendMessage(refs.Config.ModeratorChannelID, progress.printProgress()+"Finished Scheduler Initialization", dgs)
 		createdCommands := make([]*discordgo.ApplicationCommand, 0, len(cmds))
 		for _, v := range cmds {
 			createdCommands = append(createdCommands, v.CreateCommand()...)
@@ -233,11 +248,11 @@ func main() {
 	for _, cmd := range createdCommands {
 		_, err := dgs.ApplicationCommandCreate(dgs.State.User.ID, refs.Config.GuildID, cmd)
 		if err != nil {
-			e := fmt.Sprintf("Command Registration Error : %s, %v", cmd.Name, err)
+			e := fmt.Sprintf("%sCommand Registration Error : %s, %v", progress.printProgress(), cmd.Name, err)
 			utils.SendMessage(refs.Config.ModeratorChannelID, e, dgs)
 			i++
 		} else {
-			utils.SendMessage(refs.Config.ModeratorChannelID, cmd.Name+" was registered successfully", dgs)
+			utils.SendMessage(refs.Config.ModeratorChannelID, progress.printProgress()+cmd.Name+" was registered successfully", dgs)
 		}
 	}
 	if i == 0 {
@@ -251,9 +266,8 @@ func main() {
 	if refs.Config.RoleEntranceMessageID == "" {
 		utils.SendMessage(refs.Config.ModeratorChannelID, "Role-Entrance Message ID is empty", dgs)
 		log.Println("Role-Entrance Message ID is empty")
-	} else {
-		removeOnReactionAddHandler = dgs.AddHandler(onReactionAdd)
 	}
+	dgs.AddHandler(onReactionAdd)
 	setupOnInteractionHandler(dgs, &cmds)
 	defer func(dgs *discordgo.Session) {
 		err := dgs.Close()
@@ -266,16 +280,16 @@ func main() {
 	idx := 0
 	for _, channel := range channels {
 		if strings.Contains(channel.Name, "priv") {
-			if idx > len(refs.PrivateCategoryEmojis) {
+			if idx > len(refs.PrivateCategories) {
 				log.Fatal("Private Category Emojis are too little")
 			}
-			refs.PrivateCategories[channel.ID] = refs.PrivateCategoryEmojis[idx]
+			refs.PrivateCategories[idx].CategoryID = channel.ID
 			idx++
 		}
 	}
-	utils.SendMessage(refs.Config.ModeratorChannelID, "Registered Private Categories", dgs)
+	utils.SendMessage(refs.Config.ModeratorChannelID, progress.printProgress()+"Registered Private Categories", dgs)
 	refs.ReflashRoleData(dgs)
-	utils.SendMessage(refs.Config.ModeratorChannelID, "Reflashed RoleData successfully", dgs)
+	utils.SendMessage(refs.Config.ModeratorChannelID, progress.printProgress()+"Reflashed RoleData successfully", dgs)
 	utils.SendMessage(refs.Config.ModeratorChannelID, "Bot started successfully", dgs)
 	log.Println("Bot started. Press CTRL-C to exit")
 	node, err := snowflake.NewNode(1)

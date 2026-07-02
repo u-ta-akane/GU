@@ -56,9 +56,36 @@ const StopRecode uint8 = 0
 
 const PrivateCategoryMemberPermission int64 = discordgo.PermissionSendMessages | discordgo.PermissionViewChannel | discordgo.PermissionReadMessageHistory | discordgo.PermissionAddReactions | discordgo.PermissionMentionEveryone | discordgo.PermissionVoiceConnect | discordgo.PermissionUseExternalEmojis | discordgo.PermissionChangeNickname | discordgo.PermissionUseApplicationCommands | discordgo.PermissionCreatePublicThreads | discordgo.PermissionSendMessagesInThreads | discordgo.PermissionUseEmbeddedActivities
 
-var PrivateCategories = make(map[string]string)
+type PrivateCategory struct {
+	CategoryID string
+	Emoji      string
+	EmojiName  string
+}
 
-var PrivateCategoryEmojis = []string{":zero:", ":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:"}
+// key=ChannelID, value=Emoji
+var PrivateCategories = make([]PrivateCategory, 0)
+
+// key=Emoji, value=Emoji.Name
+var privateCategoryEmojis = make(map[string]string)
+
+func SetupEmojis() {
+	privateCategoryEmojis["0️⃣"] = ":zero:"
+	privateCategoryEmojis["1⃣"] = ":one:"
+	privateCategoryEmojis["2⃣"] = ":two:"
+	privateCategoryEmojis["3⃣"] = ":three:"
+	privateCategoryEmojis["4⃣"] = ":four:"
+	privateCategoryEmojis["5⃣"] = ":five:"
+	privateCategoryEmojis["6⃣"] = ":six:"
+	privateCategoryEmojis["7⃣"] = ":seven:"
+	privateCategoryEmojis["8⃣"] = ":eight:"
+	privateCategoryEmojis["9⃣"] = ":nine:"
+	for key, value := range privateCategoryEmojis {
+		PrivateCategories = append(PrivateCategories, PrivateCategory{
+			Emoji:     key,
+			EmojiName: value,
+		})
+	}
+}
 
 // JobData は、チーム、cronスケジュール、および役職を持つジョブの構造体
 type JobData struct {
