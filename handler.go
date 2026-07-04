@@ -1,11 +1,16 @@
 package main
 
 import (
+	"GU/apps"
 	"GU/refs"
 	"GU/utils"
+	"fmt"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+var removeOnReactionAddHandler func()
 
 // サーバーにユーザーが参加した時のハンドラー
 func onMemberAdd(dgs *discordgo.Session, m *discordgo.GuildMemberAdd) {
@@ -20,47 +25,206 @@ func onMemberAdd(dgs *discordgo.Session, m *discordgo.GuildMemberAdd) {
 	}
 }
 
-func onClickButton(dgs *discordgo.Session, i *discordgo.InteractionCreate) {
-	if i.Type != discordgo.InteractionMessageComponent {
-		return
+func onReactionAdd(dgs *discordgo.Session, m *discordgo.MessageReactionAdd) {
+	if m.MessageID == refs.Config.RoleEntranceMessageID {
+		if m.Member.User.ID == dgs.State.User.ID {
+			return
+		}
+		for _, cat := range refs.PrivateCategories {
+			if m.Emoji.Name == cat.EmojiName {
+				apps.IOPrivateCategoryMember(dgs, m.Member.User, cat.CategoryID)
+			}
+		}
+		err := dgs.MessageReactionRemove(refs.Config.RoleEntranceChannelID, refs.Config.RoleEntranceMessageID, m.Emoji.Name, m.Member.User.ID)
+		if err != nil {
+			utils.Log(err, "", "onReactionAdd")
+		}
 	}
-	err := dgs.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: "操作を実行しました",
-			Flags:   discordgo.MessageFlagsEphemeral,
-		},
-	})
-	data := i.MessageComponentData()
-	switch data.CustomID {
-	default:
-		utils.YURUBOPartyEdit(dgs, i, data.CustomID)
-	}
-	if err != nil {
-		utils.Log(err, "", "onClickButton")
-	}
-	/*err := dgs.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-	})
-	if err != nil {
-		return
-	}
+}
 
-	go func() {
-		switch data.CustomID {
-		default:
-			utils.YURUBOPartyEdit(dgs, i, data.CustomID)
+func onMessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
+	for idx, room := range apps.RoomList {
+		if m.ChannelID == room.ConsoleChannel.ID {
+			req := strings.Split(m.Content, "!")
+			if len(req) == 2 && req[0] == "g" {
+				switch req[1] {
+				case "main":
+					_, err := s.ChannelMessageSendComplex(
+						room.ConsoleChannel.ID,
+						&discordgo.MessageSend{
+							Content: "PLに一般公開するチャンネルを選択してください",
+							Components: []discordgo.MessageComponent{
+								discordgo.ActionsRow{
+									Components: []discordgo.MessageComponent{
+										discordgo.SelectMenu{
+											CustomID:    fmt.Sprintf("MainChannel : %s", room.VC.Name),
+											Placeholder: "チャンネルを選択",
+											MenuType:    discordgo.ChannelSelectMenu,
+											ChannelTypes: []discordgo.ChannelType{
+												discordgo.ChannelTypeGuildText,
+												discordgo.ChannelTypeGuildVoice,
+											},
+										},
+									},
+								},
+							},
+						},
+					)
+					if err != nil {
+						utils.Log(err, "", "vote")
+					}
+				case "quit":
+					fallthrough
+				case "q":
+					if room.IsRecording {
+						apps.StopRecode(room)
+					}
+					err := s.GuildRoleDelete(refs.Config.GuildID, room.Role.ID)
+					if err != nil {
+						utils.Log(err, "", "trpgMessageHandler : quit/q")
+						return
+					}
+					_, err = s.ChannelDelete(room.ConsoleChannel.ID)
+					if err != nil {
+						utils.Log(err, "", "trpgMessageHandler : quit/q")
+						return
+					}
+					apps.RoomList[idx] = &apps.Room{}
+					break
+				case "yuetsu":
+					fallthrough
+				case "yuetu":
+					for _, mem := range room.GetVCMember(s) {
+						if !strings.Contains(m.Member.User.Username, "愉悦") || !strings.Contains(m.Member.User.Username, "観戦") {
+							err := s.GuildMemberRoleAdd(
+								refs.Config.GuildID,
+								mem.User.ID,
+								room.Role.ID,
+							)
+							room.Pls = append(room.Pls, mem)
+							room.PlVotes[mem.User.ID] = false
+							if err != nil {
+								utils.Log(err, "", "trpgMessageHandler : yuetsu/yuetu")
+							}
+						}
+					}
+				case "m":
+					fallthrough
+				case "mute":
+					for _, mem := range room.GetVCMember(s) {
+						for _, role := range mem.Roles {
+							if role == room.Role.ID {
+								err := s.GuildMemberMute(refs.Config.GuildID, mem.User.ID, !room.Mute)
+								if err != nil {
+									utils.Log(err, "", "trpgMessageHandler : m/mute")
+								}
+								break
+							}
+						}
+					}
+					room.Mute = !room.Mute
+					break
+				case "vote":
+					room.Vote(s)
+				case "recode":
+					room.Recode(s)
+				case "stop-rec":
+					fallthrough
+				case "stop-recode":
+					apps.StopRecode(room)
+				}
+
+			}
 		}
-		_, e := dgs.FollowupMessageCreate(
-			i.Interaction,
-			false,
-			&discordgo.WebhookParams{
-				Content: "操作を実行しました",
-			},
-		)
-		if e != nil {
-			utils.Log(e, "", "onClickButton")
+	}
+}
+
+func setupOnInteractionHandler(dgs *discordgo.Session, cmds *[refs.NumberOfCommands]Command) {
+	dgs.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		switch i.Type {
+		case discordgo.InteractionApplicationCommand:
+			switch i.ApplicationCommandData().Name {
+			case "a-test-message":
+				AdminHandler(s, i, cmds, refs.IndexAdminTestMessage)
+			case "a-delete-messages":
+				AdminHandler(s, i, cmds, refs.IndexAdminDeleteMessages)
+			case "a-stop-bot":
+				AdminHandler(s, i, cmds, refs.IndexAdminStopBot)
+			case "a-delete-role-data":
+				AdminHandler(s, i, cmds, refs.IndexAdminReflashRoleData)
+			case "a-send-role-entrance":
+				AdminHandler(s, i, cmds, refs.IndexAdminSendRoleEntranceMessage)
+			case "start":
+				TrpgHandler(s, i, cmds, refs.IndexTrpgStart)
+			case "add-priv-category":
+				response := (cmds[refs.IndexAddPrivateCategory]).Execute(s, i)
+				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: response,
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+				if err != nil {
+					utils.Log(err, "", "setupOnInteractionHandler")
+					return
+				}
+			case "ゆるぼ":
+				response := (cmds[refs.IndexAddYURUBO]).Execute(s, i)
+				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
+					Data: &discordgo.InteractionResponseData{
+						Content: response,
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+				if err != nil {
+					utils.Log(err, "", "SetupCommands")
+					return
+				}
+			case "delete-ゆるぼ":
+				response := (cmds[refs.IndexDeleteYURUBO]).Execute(s, i)
+				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
+					Data: &discordgo.InteractionResponseData{
+						Content: response,
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+				if err != nil {
+					utils.Log(err, "", "SetupCommands")
+					return
+				}
+			}
+		case discordgo.InteractionModalSubmit:
+			data := i.ModalSubmitData()
+			if strings.Contains(data.CustomID, "mainChannel") {
+				for _, room := range apps.RoomList {
+					if room.GM.User.ID == i.User.ID {
+						for _, row := range data.Components {
+							actionRow := row.(*discordgo.ActionsRow)
+							for _, comp := range actionRow.Components {
+								input := comp.(*discordgo.TextInput)
+								for _, r := range apps.RoomList {
+									if strings.Contains(input.CustomID, r.VC.Name) {
+										r.ShowAnswer(dgs, apps.Answer{
+											CustomID: input.CustomID,
+											Value:    input.Value,
+										})
+									}
+								}
+								if strings.Contains(input.CustomID, "MainChannel") {
+									room.MainChannelID = input.Value
+								}
+							}
+						}
+					}
+				}
+				return
+			}
+			if strings.Contains(data.CustomID, "vote") {
+				utils.MakeModal(dgs, i, data.CustomID)
+			}
 		}
-	}()
-	*/
+	})
 }

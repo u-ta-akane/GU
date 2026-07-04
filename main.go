@@ -4,6 +4,7 @@ import (
 	"GU/apps"
 	"GU/commands"
 	"GU/commands/admin"
+	"GU/commands/trpg"
 	"GU/refs"
 	"GU/utils"
 	"errors"
@@ -26,6 +27,16 @@ var (
 
 // DiscordSessionManager Discordセッションを管理する構造体
 type DiscordSessionManager struct{}
+
+type setupProgress struct {
+	Now uint8
+	All uint8
+}
+
+func (s *setupProgress) printProgress() string {
+	s.Now++
+	return fmt.Sprintf("(%d / %d)  ", s.Now, s.All)
+}
 
 func (d *DiscordSessionManager) InitializeSession(token string) *discordgo.Session {
 	dg, err := discordgo.New("Bot " + token)
@@ -57,6 +68,10 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 		txt1 = "YuruboChannel ID"
 		txt2 = "set-yurubo-chan"
 		break
+	case "role-entrance-chan":
+		guildStr, isTarget = data.(refs.GuildStructure)
+		txt1 = "Role-Entrance Channel ID"
+		txt2 = "set-role-entrance-chan"
 	case "defaultAuth":
 		guildStr, isTarget = data.(refs.GuildStructure)
 		txt1 = "Default Authority ID"
@@ -90,6 +105,10 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 			guildStr = refs.GuildStructure{
 				DefaultAuthorityID: *opt,
 			}
+		case "role-entrance-chan":
+			guildStr = refs.GuildStructure{
+				RoleEntranceChannelID: *opt,
+			}
 		case "guild":
 			guildStr = refs.GuildStructure{
 				GuildID: *opt,
@@ -114,12 +133,17 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 			break
 		}
 		guildStr.YURUBOChannelID = *opt
+	case "role-entrance-chan":
+		if *opt == "" {
+			break
+		}
+		guildStr.RoleEntranceChannelID = *opt
 	case "guild":
 		if *opt == "" {
 			break
 		}
 		guildStr.GuildID = *opt
-	case "defaultAuth":
+	default:
 		if *opt == "" {
 			break
 		}
@@ -129,11 +153,17 @@ func checkInfo(data interface{}, opt *string, mode string) interface{} {
 }
 
 func main() {
+	progress := setupProgress{
+		Now: 0,
+		All: 3 + refs.NumberOfCommands,
+	}
+	refs.SetupEmojis()
 	newToken := flag.String("set-bot-token", "", "Enter Bot Token")
 	setModerateChannel := flag.String("set-moderator-chan", "", "Enter Moderate Channel ID")
 	setYURUBOChannel := flag.String("set-yurubo-chan", "", "Enter YURUBO Channel ID")
 	setGuildID := flag.String("set-guild-id", "", "Enter Guild ID")
 	setDefaultAuthority := flag.String("set-default-authority", "", "Enter Default Authority ID")
+	setRoleEntranceChannelID := flag.String("set-role-entrance-chan", "", "Enter Role-Entrance Channel ID")
 	flag.Parse()
 	secrets := utils.JSONFM.Read("secrets.json")
 	guildStr := utils.JSONFM.Read("guildStructure.json")
@@ -141,6 +171,7 @@ func main() {
 	guildStr = checkInfo(guildStr, setModerateChannel, "moderator")
 	guildStr = checkInfo(guildStr, setYURUBOChannel, "YURUBO")
 	guildStr = checkInfo(guildStr, setDefaultAuthority, "defaultAuth")
+	guildStr = checkInfo(guildStr, setRoleEntranceChannelID, "role-entrance-chan")
 	guildStr = checkInfo(guildStr, setGuildID, "guild")
 	if secrets == nil || guildStr == nil {
 		fmt.Printf("Some parameters are missing. Please fill all blank parameters.\n")
@@ -148,14 +179,14 @@ func main() {
 	}
 	refs.Secrets = secrets.(refs.SecretData)
 	refs.Config = guildStr.(refs.GuildStructure)
-	if refs.Secrets.BotToken == "" || refs.Config.ModeratorChannelID == "" || refs.Config.YURUBOChannelID == "" || refs.Config.GuildID == "" || refs.Config.DefaultAuthorityID == "" {
+	if refs.Secrets.BotToken == "" || refs.Config.ModeratorChannelID == "" || refs.Config.YURUBOChannelID == "" || refs.Config.GuildID == "" || refs.Config.DefaultAuthorityID == "" || refs.Config.RoleEntranceChannelID == "" {
 		fmt.Printf("Some parameters are missing. Please fill all blank parameters.\n")
 		return
 	}
 	sessionManager := &DiscordSessionManager{}
 	dgs = sessionManager.InitializeSession(refs.Secrets.BotToken)
 	dgs.AddHandler(onMemberAdd)
-	dgs.AddHandler(onClickButton)
+	dgs.AddHandler(onMessageHandler)
 	if err := dgs.Open(); err != nil {
 		var restErr *discordgo.RESTError
 		switch {
@@ -187,13 +218,16 @@ func main() {
 	}
 	//cmdsの順番は変えないこと！！！
 	//コマンドを追加する際はdataにインデックス番号の追記を適切な位置にすること！
-	var cmds = [refs.NumberOfCommands]commands.Command{
+	var cmds = [refs.NumberOfCommands]Command{
 		&admin.AdminTestMessageCommand{},
 		&commands.AddYURUBOCommand{},
 		&commands.DeleteYURUBOCommand{},
 		&admin.AdminDeleteMessagesCommands{},
 		&admin.AdminStopBotCommand{},
 		&admin.AdminReflashRoleDataCommand{},
+		&trpg.TrpgStartCommand{},
+		&commands.AddPrivateCategoryCommands{},
+		&admin.AdminSendRoleEntranceMessageCommand{},
 	}
 	createdCommands := func() []*discordgo.ApplicationCommand {
 		apps.Ns.InitializeSchedule()
@@ -203,7 +237,7 @@ func main() {
 		} else {
 			utils.JobDataSlice = make([]refs.JobData, 0)
 		}
-		utils.SendMessage(refs.Config.ModeratorChannelID, "Finished Scheduler Initialization", dgs)
+		utils.SendMessage(refs.Config.ModeratorChannelID, progress.printProgress()+"Finished Scheduler Initialization", dgs)
 		createdCommands := make([]*discordgo.ApplicationCommand, 0, len(cmds))
 		for _, v := range cmds {
 			createdCommands = append(createdCommands, v.CreateCommand()...)
@@ -214,18 +248,27 @@ func main() {
 	for _, cmd := range createdCommands {
 		_, err := dgs.ApplicationCommandCreate(dgs.State.User.ID, refs.Config.GuildID, cmd)
 		if err != nil {
-			e := fmt.Sprintf("Command Registration Error : %s, %v", cmd.Name, err)
+			e := fmt.Sprintf("%sCommand Registration Error : %s, %v", progress.printProgress(), cmd.Name, err)
 			utils.SendMessage(refs.Config.ModeratorChannelID, e, dgs)
 			i++
 		} else {
-			utils.SendMessage(refs.Config.ModeratorChannelID, cmd.Name+" was registered successfully", dgs)
+			utils.SendMessage(refs.Config.ModeratorChannelID, progress.printProgress()+cmd.Name+" was registered successfully", dgs)
 		}
 	}
 	if i == 0 {
 		log.Printf("Info : All commands have been registered")
 		utils.SendMessage(refs.Config.ModeratorChannelID, "Info : All commands have been registered", dgs)
 	}
-	commands.SetupCommands(dgs, &cmds)
+	if refs.Config.RoleEntranceChannelID == "" {
+		utils.SendMessage(refs.Config.ModeratorChannelID, "Role-Entrance Channel ID is empty", dgs)
+		log.Println("Role-Entrance Channel ID is empty")
+	}
+	if refs.Config.RoleEntranceMessageID == "" {
+		utils.SendMessage(refs.Config.ModeratorChannelID, "Role-Entrance Message ID is empty", dgs)
+		log.Println("Role-Entrance Message ID is empty")
+	}
+	dgs.AddHandler(onReactionAdd)
+	setupOnInteractionHandler(dgs, &cmds)
 	defer func(dgs *discordgo.Session) {
 		err := dgs.Close()
 		if err != nil {
@@ -233,8 +276,20 @@ func main() {
 			utils.SendMessage(refs.Config.ModeratorChannelID, err.Error(), dgs)
 		}
 	}(dgs)
+	channels, _ := dgs.GuildChannels(refs.Config.GuildID)
+	idx := 0
+	for _, channel := range channels {
+		if strings.Contains(channel.Name, "priv") {
+			if idx > len(refs.PrivateCategories) {
+				log.Fatal("Private Category Emojis are too little")
+			}
+			refs.PrivateCategories[idx].CategoryID = channel.ID
+			idx++
+		}
+	}
+	utils.SendMessage(refs.Config.ModeratorChannelID, progress.printProgress()+"Registered Private Categories", dgs)
 	refs.ReflashRoleData(dgs)
-	utils.SendMessage(refs.Config.ModeratorChannelID, "Reflashed RoleData successfully", dgs)
+	utils.SendMessage(refs.Config.ModeratorChannelID, progress.printProgress()+"Reflashed RoleData successfully", dgs)
 	utils.SendMessage(refs.Config.ModeratorChannelID, "Bot started successfully", dgs)
 	log.Println("Bot started. Press CTRL-C to exit")
 	node, err := snowflake.NewNode(1)
@@ -242,37 +297,38 @@ func main() {
 		utils.SendMessage(refs.Config.ModeratorChannelID, err.Error(), dgs)
 		log.Fatal(err)
 	}
-	waitForSignal(refs.Secrets, refs.Config, node, utils.YURUBOItemChannel, utils.GeneralMessageChannel, utils.IDChannel, admin.SignalChannel, utils.ErrorChannel)
+	waitForSignal(refs.Secrets, refs.Config, node)
 }
 
-func waitForSignal(secrets refs.SecretData, guildStr refs.GuildStructure, node *snowflake.Node, yc <-chan refs.JobData, gc <-chan utils.Envelope, ic chan string, sc chan os.Signal, ec <-chan error) {
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+func waitForSignal(secrets refs.SecretData, guildStr refs.GuildStructure, node *snowflake.Node) {
+	signal.Notify(admin.SignalChannel, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	utils.IsCreatedChannel = true
 	go func() {
 		time.Sleep(5000 * time.Millisecond)
-		utils.JSONFM.Write("secrets.json", secrets)
-		utils.JSONFM.Write("config.json", guildStr)
+		err := utils.JSONFM.Write("secrets.json", secrets)
+		fmt.Printf("err=%v type=%T value=%+v\n", err, secrets, secrets)
+		err = utils.JSONFM.Write("config.json", guildStr)
+		fmt.Printf("err=%v type=%T value=%+v\n", err, guildStr, guildStr)
 		if len(utils.JobDataSlice) == 0 {
-			utils.JSONFM.Write("jobData.json", utils.JobDataSlice)
+			err := utils.JSONFM.Write("jobData.json", utils.JobDataSlice)
+			if err != nil {
+				fmt.Printf("err=%v type=%T value=%+v\n", err, utils.JobDataSlice, utils.JobDataSlice)
+			}
 		}
 	}()
 Completed:
 	for {
 		select {
-		case <-sc:
+		case <-admin.SignalChannel:
 			break Completed
-		case item := <-yc:
+		case item := <-utils.YURUBOItemChannel:
 			utils.SendYURUBOItem(dgs, item)
-			break
-		case en := <-gc:
+		case en := <-utils.GeneralMessageChannel:
 			utils.SendMessage(en.Channel, en.Message, dgs)
-			break
-		case <-ic:
-			ic <- utils.GenerateID(node)
-			break
-		case e := <-ec:
+		case <-utils.IDChannel:
+			utils.IDChannel <- utils.GenerateID(node)
+		case e := <-utils.ErrorChannel:
 			utils.Log(e, "", "onMemberAdd")
-			break
 		}
 	}
 }
