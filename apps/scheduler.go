@@ -132,5 +132,8 @@ func (s *GoCronScheduler) searchJobFromInstance(jobID string) []gocron.Job {
 
 func getID() string {
 	utils.IDChannel <- ""
-	return <-utils.IDChannel
+	select {
+	case id := <-utils.IDChannel:
+		return id
+	}
 }

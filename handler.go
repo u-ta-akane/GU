@@ -89,8 +89,14 @@ func onMessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 						utils.Log(err, "", "trpgMessageHandler : quit/q")
 						return
 					}
+					_, err = s.ChannelEdit(room.VC.ID, &discordgo.ChannelEdit{
+						Name: room.Name,
+					})
+					if err != nil {
+						utils.Log(err, "", "trpgMessageHandler : quit/q")
+						return
+					}
 					apps.RoomList[idx] = &apps.Room{}
-					break
 				case "yuetsu":
 					fallthrough
 				case "yuetu":
