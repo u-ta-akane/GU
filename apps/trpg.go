@@ -32,6 +32,7 @@ type Answer struct {
 type recorder struct {
 	Writers map[uint32]*oggwriter.OggWriter
 	Mutex   sync.Mutex
+	SSRCMap map[uint32]string // SSRCからUserIDへのマッピング
 }
 
 type Room struct {
@@ -47,6 +48,8 @@ type Room struct {
 	PlVotes        map[string]bool
 	voteButtonIDs  []string
 	fin            bool
+	StopRecodeChan chan struct{}
+	Name           string
 }
 
 func (r *recorder) GetWriter(
@@ -140,6 +143,8 @@ func NewRoom(s *discordgo.Session, i *discordgo.InteractionCreate, vc *discordgo
 		GM:             i.Member,
 		fin:            false,
 		IsRecording:    false,
+		Name:           vc.Name,
+		StopRecodeChan: make(chan struct{}),
 	})
 	utils.SendMessage(cc.ID, "TRPGセッションが開始されました！\n\nコマンドの使用方法を以下に示します\ng!yuetu(g!yuetsu) : 現在VCに参加中で、名前に観戦、愉悦とある人以外にPLロールを付与します\ng!q(g!quit) : TRPGセッションを終了します(このコンソールが閉じます)\ng!m(g!mute) : PLロールを持っている人全員をミュートします。もう一度実行すると解除されます。このミュートはこのコマンドによってしか解除できません。", s)
 }
@@ -231,67 +236,72 @@ func (r *Room) Recode(s *discordgo.Session) {
 	}
 	rec := &recorder{
 		Writers: make(map[uint32]*oggwriter.OggWriter),
+		SSRCMap: make(map[uint32]string),
 	}
+	// SSRCとUserIDのマッピングを更新するハンドラを追加
+	vc.AddHandler(func(vc *discordgo.VoiceConnection, vs *discordgo.VoiceSpeakingUpdate) {
+		rec.Mutex.Lock()
+		rec.SSRCMap[uint32(vs.SSRC)] = vs.UserID
+		rec.Mutex.Unlock()
+	})
 	go func() {
 		for {
-		check:
 			select {
-			case h := <-ContinueRecodeChannel:
-				if h == refs.StopRecode {
-					break check
+			case <-r.StopRecodeChan:
+				goto EndRecode
+			case packet, ok := <-vc.OpusRecv:
+				if !ok {
+					goto EndRecode
 				}
-			default:
-				break check
-			}
-			packet, ok := <-vc.OpusRecv
-			if !ok {
-				break
-			}
-			userID := vc.UserID
-			if userID == "" {
-				continue
-			}
-			writer, err := rec.GetWriter(
-				userID,
-				packet.SSRC,
-			)
-			if err != nil {
-				utils.Log(err, "", "Recode")
-				continue
-			}
-
-			err = writer.WriteRTP(&rtp.Packet{
-				Header: rtp.Header{
-					Version:        2,
-					PayloadType:    111,
-					SequenceNumber: packet.Sequence,
-					Timestamp:      packet.Timestamp,
-					SSRC:           packet.SSRC,
-				},
-				Payload: packet.Opus,
-			})
-
-			if err != nil {
-				utils.Log(err, "", "Recode")
+				// SSRCからUserIDを取得
+				rec.Mutex.Lock()
+				userID, ok := rec.SSRCMap[packet.SSRC]
+				rec.Mutex.Unlock()
+				if !ok || userID == "" {
+					continue // ユーザーが特定できない場合はスキップ
+				}
+				writer, err := rec.GetWriter(
+					userID,
+					packet.SSRC,
+				)
+				if err != nil {
+					utils.Log(err, "", "Recode")
+					continue
+				}
+				err = writer.WriteRTP(&rtp.Packet{
+					Header: rtp.Header{
+						Version:        2,
+						PayloadType:    111,
+						SequenceNumber: packet.Sequence,
+						Timestamp:      packet.Timestamp,
+						SSRC:           packet.SSRC,
+					},
+					Payload: packet.Opus,
+				})
+				if err != nil {
+					utils.Log(err, "", "Recode")
+				}
 			}
 		}
+	EndRecode:
 		for _, writer := range rec.Writers {
 			err := writer.Close()
 			if err != nil {
 				utils.Log(err, "", "Recode")
 			}
 		}
+		// 録音終了時にVoiceConnectionを切断する
+		vc.Disconnect()
 	}()
 }
-
 func StopRecode(room *Room) {
 	if room.IsRecording {
 		room.IsRecording = false
 		UsingRecode--
-		if UsingRecode == 0 {
-			ContinueRecodeChannel <- refs.StopRecode
-			return
-		}
+		close(room.StopRecodeChan) // この部屋の録音ループを停止
+		utils.OrderSendMessage(room.ConsoleChannel.ID, "録音を停止しました。")
+	} else {
 		utils.OrderSendMessage(room.ConsoleChannel.ID, "現在は録音中ではありません！")
 	}
+
 }
