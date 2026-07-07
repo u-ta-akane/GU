@@ -12,6 +12,7 @@ type GuildStructure struct {
 	DefaultAuthorityID    string `json:"default_authority_id"`
 	RoleEntranceChannelID string `json:"role_entrance_channel_id"`
 	RoleEntranceMessageID string `json:"role_entrance_message_id"`
+	PlayingStatusRoleID   string `json:"playing_status_role_id"`
 }
 
 var (
@@ -48,6 +49,7 @@ const (
 	IndexTrpgStart
 	IndexAddPrivateCategory
 	IndexAdminSendRoleEntranceMessage
+	IndexStatusCommand
 	// NumberOfCommands この上にコマンドを追加する！
 	NumberOfCommands
 )

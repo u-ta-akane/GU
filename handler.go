@@ -145,6 +145,25 @@ func onMessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 }
 
+func onPresenceUpdate(s *discordgo.Session, p *discordgo.PresenceUpdate) {
+	if p.Status == discordgo.StatusOffline {
+		user, err := s.GuildMember(refs.Config.GuildID, p.User.ID)
+		if err != nil {
+			utils.Log(err, "", "onPresenceUpdate")
+			return
+		}
+		for _, role := range user.Roles {
+			if role == refs.Config.PlayingStatusRoleID {
+				err = s.GuildMemberRoleRemove(refs.Config.GuildID, p.User.ID, refs.Config.PlayingStatusRoleID)
+				if err != nil {
+					utils.Log(err, "", "onPresenceUpdate")
+					return
+				}
+			}
+		}
+	}
+}
+
 func setupOnInteractionHandler(dgs *discordgo.Session, cmds *[refs.NumberOfCommands]Command) {
 	dgs.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
@@ -173,6 +192,19 @@ func setupOnInteractionHandler(dgs *discordgo.Session, cmds *[refs.NumberOfComma
 				})
 				if err != nil {
 					utils.Log(err, "", "setupOnInteractionHandler")
+					return
+				}
+			case "play":
+				response := (cmds[refs.IndexStatusCommand]).Execute(s, i)
+				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource, // 「通常の返答」タイプ
+					Data: &discordgo.InteractionResponseData{
+						Content: response,
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+				if err != nil {
+					utils.Log(err, "", "SetupCommands")
 					return
 				}
 			case "ゆるぼ":
