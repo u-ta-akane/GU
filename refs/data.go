@@ -20,6 +20,7 @@ var (
 	Config  = GuildStructure{}
 )
 
+const UndecidedYURUBOCron = "2008-01-15 01:25:00"
 const (
 	ColorFPS       = 0x800000
 	ColorRPG       = 0x808000

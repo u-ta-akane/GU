@@ -25,7 +25,12 @@ func SendYURUBOItem(s *discordgo.Session, item refs.JobData) {
 	date = date.Add(time.Minute * time.Duration(item.Gap))
 	embed := &discordgo.MessageEmbed{
 		Title: item.Title,
-		Description: fmt.Sprintf("@%s\n募集日時 : %s\nランク/非ランク : %s\n募集人数 : @%d\n\n参加者 : %s", item.Role, date.Format(time.DateTime), rank, item.Number,
+		Description: fmt.Sprintf("@%s\n募集日時 : %s\nランク/非ランク : %s\n募集人数 : @%d\n\n参加者 : %s", item.Role, func() string {
+			if item.Cron == refs.UndecidedYURUBOCron {
+				return "未定"
+			}
+			return date.Format(time.DateTime)
+		}(), rank, item.Number,
 			func() string {
 				str := ""
 				for _, party := range item.Party {
