@@ -32,19 +32,19 @@ func (c *AddYURUBOCommand) CreateCommand() []*discordgo.ApplicationCommand {
 				{
 					Type:        discordgo.ApplicationCommandOptionInteger,
 					Name:        "募集する日",
-					Description: "今日から6日後まで作成できます (0:　今日, 1: 明日, 2: 明後日, 3: 明々後日, 4: 4日後, 5: 5日後, 6: 6日後)",
+					Description: "今日から5日後まで作成できます (0:　今日, 1: 明日, 2: 明後日, 3: 明々後日, 4: 4日後, 5: 5日後, 6: 未定)",
 					Required:    true,
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionInteger,
 					Name:        "時",
-					Description: "0~23",
+					Description: "0~23（未定の場合は好きな整数でも入れてください)",
 					Required:    true,
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionInteger,
 					Name:        "分",
-					Description: "0~59",
+					Description: "0~59 (未定の場合は好きな整数でも入れてください)",
 					Required:    true,
 				},
 				{
@@ -85,6 +85,17 @@ func (c *AddYURUBOCommand) Execute(s *discordgo.Session, i *discordgo.Interactio
 		if opt.Name == "ランク" {
 			YURUBO.Rank = opt.StringValue()
 		}
+	}
+	if day >= 6 {
+		YURUBO.Cron = refs.UndecidedYURUBOCron
+		utils.IDChannel <- ""
+		select {
+		case id := <-utils.IDChannel:
+			YURUBO.Id = id
+			break
+		}
+		utils.OrderSendYURUBOItem(YURUBO)
+		return "作成に成功しました"
 	}
 	tz, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(tz)
