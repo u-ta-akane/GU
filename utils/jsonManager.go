@@ -15,8 +15,7 @@ type FileManager interface {
 }
 
 type JSONFileManager struct {
-	muWrite sync.Mutex
-	muRead  sync.Mutex
+	mu sync.RWMutex
 }
 
 var (
@@ -27,10 +26,10 @@ var (
 
 // Write JSONデータをファイルに書き込む
 func (j *JSONFileManager) Write(filename string, data interface{}) error {
-	j.muWrite.Lock()
+	j.mu.Lock()
 	f, err := os.Create(filename)
 	if err != nil {
-		j.muWrite.Unlock()
+		j.mu.Unlock()
 		Log(err, "", "Write")
 		return err
 	}
@@ -39,7 +38,7 @@ func (j *JSONFileManager) Write(filename string, data interface{}) error {
 		if errFClose != nil {
 			Log(err, "", "Write")
 		}
-		j.muWrite.Unlock()
+		j.mu.Unlock()
 	}(f)
 	if err != nil {
 		log.Print("ファイル取得失敗: %v", err)
@@ -58,11 +57,11 @@ func (j *JSONFileManager) Write(filename string, data interface{}) error {
 
 // ReadJSON JSONデータをファイルから読み込む
 func (j *JSONFileManager) Read(filename string) interface{} {
-	j.muRead.Lock()
+	j.mu.RLock()
 	f, err := os.Open(filename)
 	if err != nil {
 		log.Printf("ファイル取得失敗: %v", err)
-		j.muRead.Unlock()
+		j.mu.RUnlock()
 		return err
 	}
 	defer func(f *os.File) {
@@ -74,7 +73,7 @@ func (j *JSONFileManager) Read(filename string) interface{} {
 				log.Printf(errFClose.Error())
 			}
 		}
-		j.muRead.Unlock()
+		j.mu.RUnlock()
 	}(f)
 	decoder := json.NewDecoder(f)
 	switch filename {
