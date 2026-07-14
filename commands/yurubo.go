@@ -88,6 +88,12 @@ func (c *AddYURUBOCommand) Execute(s *discordgo.Session, i *discordgo.Interactio
 	}
 	if day >= 6 {
 		YURUBO.Cron = refs.UndecidedYURUBOCron
+		utils.IDChannel <- ""
+		select {
+		case id := <-utils.IDChannel:
+			YURUBO.Id = id
+			break
+		}
 		utils.OrderSendYURUBOItem(YURUBO)
 		return "作成に成功しました"
 	}

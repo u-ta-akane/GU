@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 )
 
 type FileManager interface {
@@ -13,7 +14,10 @@ type FileManager interface {
 	Write(filename string, data interface{})
 }
 
-type JSONFileManager struct{}
+type JSONFileManager struct {
+	muWrite sync.Mutex
+	muRead  sync.Mutex
+}
 
 var (
 	JobDataSlice []refs.JobData
@@ -23,70 +27,81 @@ var (
 
 // Write JSONデータをファイルに書き込む
 func (j *JSONFileManager) Write(filename string, data interface{}) error {
+	j.muWrite.Lock()
 	f, err := os.Create(filename)
 	if err != nil {
-		log.Fatalf("ファイル取得失敗: %v", err)
+		j.muWrite.Unlock()
+		Log(err, "", "Write")
+		return err
 	}
 	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
+		errFClose := f.Close()
+		if errFClose != nil {
 			Log(err, "", "Write")
 		}
+		j.muWrite.Unlock()
 	}(f)
-
-	output, err := json.MarshalIndent(data, "", "\t\t")
 	if err != nil {
-		log.Fatalf("JSONエンコード失敗: %v", err)
+		log.Print("ファイル取得失敗: %v", err)
 	}
 
-	if _, err := f.Write(output); err != nil {
-		log.Fatalf("JSON書き込み失敗: %v", err)
+	output, errIndent := json.MarshalIndent(data, "", "\t\t")
+	if errIndent != nil {
+		log.Printf("JSONエンコード失敗: %v", err)
+	}
+
+	if _, errFWrite := f.Write(output); errFWrite != nil {
+		log.Printf("JSON書き込み失敗: %v", err)
 	}
 	return err
 }
 
 // ReadJSON JSONデータをファイルから読み込む
 func (j *JSONFileManager) Read(filename string) interface{} {
+	j.muRead.Lock()
 	f, err := os.Open(filename)
 	if err != nil {
+		log.Printf("ファイル取得失敗: %v", err)
+		j.muRead.Unlock()
 		return err
 	}
 	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
+		errFClose := f.Close()
+		if errFClose != nil {
 			if IsCreatedChannel {
-				Log(err, "", "JSONFM.Read")
+				Log(errFClose, "", "JSONFM.Read")
 			} else {
-				log.Printf(err.Error())
+				log.Printf(errFClose.Error())
 			}
 		}
+		j.muRead.Unlock()
 	}(f)
 	decoder := json.NewDecoder(f)
 	switch filename {
 	case "jobData.json":
 		var data []refs.JobData
-		if err := decoder.Decode(&data); err != nil {
+		if errFilenameSwitch := decoder.Decode(&data); errFilenameSwitch != nil {
 			if IsCreatedChannel {
-				Log(err, "", "JSONFM.Read")
+				Log(errFilenameSwitch, "", "JSONFM.Read")
 			} else {
 				log.Printf("JSONデコード失敗: %v", err)
-				f, err := os.Create("jobData.json")
-				if err != nil {
-					log.Fatalf("ファイル取得失敗: %v", err)
+				ff, errNewCreate := os.Create("jobData.json")
+				if errNewCreate != nil {
+					log.Fatalf("ファイル取得失敗: %v", errNewCreate)
 				}
-				defer func(f *os.File) {
-					err := f.Close()
-					if err != nil {
-						log.Printf(err.Error())
+				defer func(ff *os.File) {
+					errFFClose := ff.Close()
+					if errFFClose != nil {
+						log.Printf(errFFClose.Error())
 					}
-				}(f)
+				}(ff)
 
-				output, err := json.MarshalIndent(refs.JobData{}, "", "\t\t")
-				if err != nil {
-					log.Fatalf("JSONエンコード失敗: %v", err)
+				output, errIndent := json.MarshalIndent(refs.JobData{}, "", "\t\t")
+				if errIndent != nil {
+					log.Fatalf("JSONエンコード失敗: %v", errIndent)
 				}
 
-				if _, err := f.Write(output); err != nil {
+				if _, err := ff.Write(output); err != nil {
 					log.Fatalf("JSON書き込み失敗: %v", err)
 				}
 			}
@@ -95,28 +110,28 @@ func (j *JSONFileManager) Read(filename string) interface{} {
 		return data
 	case "secrets.json":
 		var data refs.SecretData
-		if err := decoder.Decode(&data); err != nil {
+		if errFilenameSwitch := decoder.Decode(&data); errFilenameSwitch != nil {
 			if IsCreatedChannel {
-				Log(err, "", "JSONFM.Read")
+				Log(errFilenameSwitch, "", "JSONFM.Read")
 			} else {
-				log.Printf("JSONデコード失敗: %v", err)
-				f, err := os.Create("secrets.json")
-				if err != nil {
-					log.Fatalf("ファイル取得失敗: %v", err)
+				log.Printf("JSONデコード失敗: %v", errFilenameSwitch)
+				ff, errFFNewCreate := os.Create("secrets.json")
+				if errFFNewCreate != nil {
+					log.Fatalf("ファイル取得失敗: %v", errFFNewCreate)
 				}
-				defer func(f *os.File) {
-					err := f.Close()
+				defer func(ff *os.File) {
+					err := ff.Close()
 					if err != nil {
 						log.Printf(err.Error())
 					}
-				}(f)
+				}(ff)
 
 				output, err := json.MarshalIndent(refs.Secrets, "", "\t\t")
 				if err != nil {
 					log.Fatalf("JSONエンコード失敗: %v", err)
 				}
 
-				if _, err := f.Write(output); err != nil {
+				if _, err := ff.Write(output); err != nil {
 					log.Fatalf("JSON書き込み失敗: %v", err)
 				}
 			}
@@ -130,16 +145,16 @@ func (j *JSONFileManager) Read(filename string) interface{} {
 				Log(err, "", "JSONFM.Read")
 			} else {
 				log.Printf("JSONデコード失敗: %v", err)
-				f, err := os.Create("config.json")
+				ff, err := os.Create("config.json")
 				if err != nil {
 					log.Fatalf("ファイル取得失敗: %v", err)
 				}
-				defer func(f *os.File) {
-					err := f.Close()
+				defer func(ff *os.File) {
+					err := ff.Close()
 					if err != nil {
 						log.Printf(err.Error())
 					}
-				}(f)
+				}(ff)
 
 				output, err := json.MarshalIndent(refs.Config, "", "\t\t")
 				if err != nil {
